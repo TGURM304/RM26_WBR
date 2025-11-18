@@ -23,7 +23,7 @@
 #define USE_FLASH_CHECK
 
 // 若启用，则从 E_UART_REFEREE 更新裁判系统相关信息，注意要在主函数中初始化串口
-#define USE_REFEREE_SYSTEM
+// #define USE_REFEREE_SYSTEM
 
 #define SYS_FLASH_KEY 998244353
 
