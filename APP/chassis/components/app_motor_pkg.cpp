@@ -21,7 +21,7 @@ void Motor_Pkg::Joint::rest() {
 Motor_Pkg::motor_status_pkg Motor_Pkg::Joint::get_status() {
     status_.old_pos = status_.pos;
     status_.old_speed = status_.speed;
-    status_.pos = status.pos*dir_;
+    status_.pos = status.pos*dir_+zero_;
     status_.speed = status.vel*dir_;
     return status_;
 }

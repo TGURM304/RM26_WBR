@@ -6,6 +6,8 @@
 #define APP_MOTOR_PKG_H
 #include "dev_motor_dji.h"
 #include "dev_motor_dm.h"
+
+#include <arm_math_types.h>
 namespace Motor_Pkg {
     typedef struct {
         float old_pos, old_speed;
@@ -18,8 +20,9 @@ namespace Motor_Pkg {
     }E_dir;
     class Joint: Motor::DMMotor {
     public:
-        explicit Joint(const char *name, const Model &model, const Param &param,E_dir dir)
-            :DMMotor(name,model,param){
+        explicit Joint(const char *name, const Model &model,
+            const Param &param,E_dir dir, float32_t zero)
+            :DMMotor(name,model,param), zero_(zero){
             if(dir == E_forward)
                 dir_ = 1.0f;
             else if(dir == E_backward)
@@ -31,9 +34,10 @@ namespace Motor_Pkg {
         motor_status_pkg get_status();
     private:
         motor_status_pkg status_ = {0};
-        float dir_;
+        float dir_, zero_;
     };
     class Dynamic: Motor::DJIMotor {
+    public:
         explicit Dynamic(const char *name, const Model &model, const Param &param,
             E_dir dir, float reduction, float wheel_R)
         :DJIMotor(name,model,param), reduction_(reduction), wheel_R_(wheel_R){
