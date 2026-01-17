@@ -140,49 +140,6 @@ class Matrixf {
     }
     return res;
   }
-  //preset matrix
-  Matrixf<_rows, _rows> rot_z(const float deg) {
-    if(_rows < 3 || _rows > 4) {
-      Error_Handler();
-    }
-    float data[_rows * _rows] = {0};
-    data[0*_rows+0] = cos(deg);
-    data[0*_rows+1] = -sin(deg);
-    data[1*_rows+0] = sin(deg);
-    data[1*_rows+1] = cos(deg);
-    data[2*_rows+2] = 1;
-    if(_rows == 4) data[3*_rows+3] = 1;
-    Matrixf<_rows, _rows> res(data);
-    return res;
-  }
-  Matrixf<_rows, _rows> rot_y(const float deg) {
-    if(_rows < 3 || _rows > 4) {
-      Error_Handler();
-    }
-    float data[_rows * _rows] = {0};
-    data[0*_rows+0] = cos(deg);
-    data[0*_rows+2] = sin(deg);
-    data[2*_rows+0] = -sin(deg);
-    data[2*_rows+2] = cos(deg);
-    data[1*_rows+1] = 1;
-    if(_rows == 4) data[3*_rows+3] = 1;
-    Matrixf<_rows, _rows> res(data);
-    return res;
-  }
-  Matrixf<_rows, _rows> rot_x(const float deg) {
-    if(_rows < 3 || _rows > 4) {
-      Error_Handler();
-    }
-    float data[_rows * _rows] = {0};
-    data[1*_rows+1] = cos(deg);
-    data[1*_rows+2] = -sin(deg);
-    data[2*_rows+1] = sin(deg);
-    data[2*_rows+2] = cos(deg);
-    data[0*_rows+0] = 1;
-    if(_rows == 4) data[3*_rows+3] = 1;
-    Matrixf<_rows, _rows> res(data);
-    return res;
-  }
   //cross multiple
   void vector_cross_multiple(const Matrixf<3, 1>& mat1,const Matrixf<3, 1>& mat2) {
     if(!(this->rows_ == 3 && this->cols_ == 1)) {
@@ -297,6 +254,44 @@ Matrixf<_dim, _dim> inv(Matrixf<_dim, _dim> mat) {
     memcpy(res[i], &ext_mat[i][_dim], _dim * sizeof(float));
   }
   return res;
+}
+
+//Rot matrix
+template <int _dim>
+Matrixf<_dim, _dim> rot_z(float deg) {
+  static_assert(_dim>=3 && _dim <= 4, "dimension can not bigger than '4' or smaller than '3'");
+  Matrixf<_dim,_dim> temp = matrixf::eye<_dim,_dim>();
+  temp[0][0] = cosf(deg); temp[0][1] = -sinf(deg);
+  temp[1][0] = sinf(deg); temp[1][1] = cosf(deg);
+  return temp;
+}
+
+template<int _dim>
+Matrixf<_dim, _dim> rot_y(float deg) {
+    static_assert(_dim>=3 && _dim <= 4, "dimension can not bigger than '4' or smaller than '3'");
+    Matrixf<_dim,_dim> temp = matrixf::eye<_dim,_dim>();
+    temp[0][0] = cosf(deg); temp[0][2] = sinf(deg);
+    temp[2][0] = -sinf(deg); temp[2][2] = cosf(deg);
+    return temp;
+}
+
+template<int _dim>
+Matrixf<_dim, _dim> rot_x(float deg) {
+  static_assert(_dim>=3 && _dim <= 4, "dimension can not bigger than '4' or smaller than '3'");
+  Matrixf<_dim,_dim> temp = matrixf::eye<_dim,_dim>();
+  temp[1][1] = cosf(deg); temp[1][2] = -sinf(deg);
+  temp[2][1] = sinf(deg); temp[2][2] = cosf(deg);
+  return temp;
+}
+
+template<int _dim>
+Matrixf<_dim,_dim> rot_euler(float rol, float pit, float yaw) {
+  static_assert(_dim>=3 && _dim <= 4, "dimension can not bigger than '4' or smaller than '3'");
+  Matrixf<_dim,_dim> matrix_rol = matrixf::rot_x<_dim>(rol);
+  Matrixf<_dim,_dim> matrix_pit = matrixf::rot_y<_dim>(pit);
+  Matrixf<_dim,_dim> matrix_yaw = matrixf::rot_z<_dim>(yaw);
+  Matrixf<_dim,_dim> matrix_euler = matrix_yaw*matrix_pit*matrix_rol;
+  return matrix_euler;
 }
 
 }  // namespace matrixf
