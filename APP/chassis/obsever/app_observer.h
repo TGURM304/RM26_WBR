@@ -13,10 +13,10 @@
 
 namespace Observer {
 using namespace Motor_Pkg;
-#define L1 210.0f
-#define L2 250.0f
-#define KATE_A 94.5f
-#define KATE_B 112.5f
+#define L1 0.210f
+#define L2 0.250f
+#define KATE_A 0.0945f
+#define KATE_B 0.1125f
     typedef struct {
         float body_roll; //用于姿态控制
         float wheel_S, wheel_ver;//用于LQR的轮位移S和速度dot_S
@@ -47,8 +47,14 @@ using namespace Motor_Pkg;
         }
         void update();
         car_status get_lqr_status() {return LQR_status_;}
+        leg_status get_leg_status(leg_switch leg) {
+            if(leg == E_LEFT)
+                return left_leg_status_;
+            else
+                return right_leg_status_;
+        }
     private:
-        void leg_clc(float J1_theta, float J2_theta,leg_switch leg);
+        void leg_clc(float theta_big, float theta_small,leg_switch leg);
         Motor_Pkg::Dynamic *left_dynamic_;
         Motor_Pkg::Dynamic *right_dynamic_;
         Motor_Pkg::Joint *joint1_;

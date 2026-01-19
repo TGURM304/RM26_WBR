@@ -13,6 +13,7 @@ namespace Motor_Pkg {
         float old_pos, old_speed;
         float pos;
         float speed;
+        uint8_t err;
     }motor_status_pkg;
     typedef enum {
         E_forward,
@@ -28,12 +29,14 @@ namespace Motor_Pkg {
             else if(dir == E_backward)
                 dir_ = -1.0f;
         }
-        void pkg_init();
+        void pkg_init(){init();}
         void set_tor(float tor);
+        void pkg_reset(){rest();}
+        void pkg_enable(){enable();}
         void rest();
         motor_status_pkg get_status();
     private:
-        motor_status_pkg status_ = {0};
+        motor_status_pkg status_pkg_ = {0};
         float dir_, zero_;
     };
     class Dynamic: Motor::DJIMotor {

@@ -4,11 +4,6 @@
 
 #include "app_motor_pkg.h"
 
-void Motor_Pkg::Joint::pkg_init() {
-    init();
-    enable();
-}
-
 void Motor_Pkg::Joint::set_tor(float tor) {
     control(0,0,0,0,tor*dir_);
 }
@@ -19,18 +14,16 @@ void Motor_Pkg::Joint::rest() {
 }
 
 Motor_Pkg::motor_status_pkg Motor_Pkg::Joint::get_status() {
-    status_.old_pos = status_.pos;
-    status_.old_speed = status_.speed;
-    status_.pos = status.pos*dir_+zero_;
-    status_.speed = status.vel*dir_;
-    return status_;
+    status_pkg_.old_pos = status_pkg_.pos;
+    status_pkg_.old_speed = status_pkg_.speed;
+    status_pkg_.pos = status.pos*dir_+zero_;
+    status_pkg_.speed = status.vel*dir_;
+    status_pkg_.err = status.err;
+    return status_pkg_;
 }
-
-
 
 void Motor_Pkg::Dynamic::pkg_init() {
     init();
-    enable();
 }
 /*
  * 铁损阻力：72rpm/Nm
@@ -47,10 +40,11 @@ void Motor_Pkg::Dynamic::pkg_init() {
 #define PI_F32 (3.1415926f)
 void Motor_Pkg::Dynamic::set_tor(float tor) {
     float temp_tor = tor*dir_;
-    float current = temp_tor/(REDUCTION_NOW/REDUCTION_ORG*TORQUE_CONST);
+    // float current = temp_tor/(REDUCTION_NOW/REDUCTION_ORG*TORQUE_CONST);
+    float current = temp_tor/REDUCTION_NOW*(REDUCTION_ORG)/TORQUE_CONST;
     if(current > 20.0f) current = 20.0f;
     if(current < -20.0f) current = -20.0f;
-    update(current*16384);
+    update(current/20*16384);
 }
 
 void Motor_Pkg::Dynamic::rest() {
