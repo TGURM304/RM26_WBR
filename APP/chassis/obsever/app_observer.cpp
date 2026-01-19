@@ -18,9 +18,9 @@ void StateMapping::update() {
     leg_clc(motors_.J4.pos,motors_.J3.pos,E_LEFT);
 
     LQR_status_.body_roll = pos->body_phi;
-    LQR_status_.body_S += (motors_.D1.pos-motors_.D1.old_pos
+    LQR_status_.wheel_S += (motors_.D1.pos-motors_.D1.old_pos
         +motors_.D2.pos-motors_.D2.old_pos)/2;
-    LQR_status_.body_ver = (motors_.D1.speed+motors_.D2.speed)/2;
+    LQR_status_.wheel_ver = (motors_.D1.speed+motors_.D2.speed)/2;
     LQR_status_.body_phi = pos->body_phi;
     LQR_status_.body_gro = pos->body_phi_gry;
     LQR_status_.body_theta = pos->body_theta;

@@ -19,7 +19,7 @@ using namespace Motor_Pkg;
 #define KATE_B 112.5f
     typedef struct {
         float body_roll; //用于姿态控制
-        float body_S, body_ver;//用于LQR的位移S和速度dot_S
+        float wheel_S, wheel_ver;//用于LQR的轮位移S和速度dot_S
         float body_phi, body_gro;//用于LQR的偏航角yaw和dot_yaw
         float left_theta,left_dot_theta;
         float right_theta, right_dot_theta;//用于LQR的左右腿的倾角theta和dot_theta
@@ -46,6 +46,7 @@ using namespace Motor_Pkg;
             pos = ins_->get_pos();
         }
         void update();
+        car_status get_lqr_status() {return LQR_status_;}
     private:
         void leg_clc(float J1_theta, float J2_theta,leg_switch leg);
         Motor_Pkg::Dynamic *left_dynamic_;
