@@ -9,7 +9,7 @@
 #include <cstdint>
 
 // 单个 Can 总线挂载电机数限制
-#define DM_MOTOR_LIMIT 4
+#define DM_MOTOR_LIMIT 8
 
 /*
  *  DM Motor Driver

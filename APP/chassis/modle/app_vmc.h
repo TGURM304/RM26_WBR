@@ -24,8 +24,9 @@ typedef struct {
 }update_pkg;
     class app_vmc {
     public:
-        app_vmc();
+        app_vmc() = default;
         void tor_clc(update_pkg pkg, E_LEG_SWITCH select);
+        motor_tor tor_get() {return tor_;}
     private:
         void VMC_clc(float theta_m1, float theta_m2);
         float jacobin[4] = {};
