@@ -12,21 +12,25 @@ typedef enum {
     E_Right
 }E_LEG_SWITCH;
 typedef struct {
-    float left_tor1, left_tor2;
-    float right_tor1, right_tor2;
+    float p_left_tor1, p_left_tor2;
+    float p_right_tor1, p_right_tor2;
+    float c_left_tor1, c_left_tor2;
+    float c_right_tor1, c_right_tor2;
 }motor_tor;
 typedef struct {
-    float force_L, leg_tor, leg_len;
-    float theta_m1, theta_m2, leg_theta;
+    float force_L, leg_tor; //输入的沿着腿的力和腿的扭矩
+    float force_x, force_y; //输入的笛卡尔坐标系下的力
+    float theta_m1, theta_m2, leg_theta, leg_len;
 }update_pkg;
     class app_vmc {
     public:
         app_vmc();
-        void force_clc(update_pkg pkg, E_LEG_SWITCH select);
+        void tor_clc(update_pkg pkg, E_LEG_SWITCH select);
     private:
         void VMC_clc(float theta_m1, float theta_m2);
         float jacobin[4] = {};
-        float force[2];
+        float p_force[2] = {};
+        float c_force[2] = {};
         motor_tor tor_ = {0};
     };
 }

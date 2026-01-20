@@ -19,6 +19,7 @@ namespace Motor_Pkg {
         E_forward,
         E_backward
     }E_dir;
+    //此处注意，一定要设置8009P的P_MAX为3.141593，否则会出现非单圈编码器的情况
     class Joint: Motor::DMMotor {
     public:
         explicit Joint(const char *name, const Model &model,
@@ -31,9 +32,8 @@ namespace Motor_Pkg {
         }
         void pkg_init(){init();}
         void set_tor(float tor);
-        void pkg_reset(){rest();}
+        void pkg_reset(){reset();}
         void pkg_enable(){enable();}
-        void rest();
         motor_status_pkg get_status();
     private:
         motor_status_pkg status_pkg_ = {0};

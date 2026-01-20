@@ -8,10 +8,6 @@ void Motor_Pkg::Joint::set_tor(float tor) {
     control(0,0,0,0,tor*dir_);
 }
 
-void Motor_Pkg::Joint::rest() {
-    control(0,0,0,0,0);
-    reset();
-}
 
 Motor_Pkg::motor_status_pkg Motor_Pkg::Joint::get_status() {
     status_pkg_.old_pos = status_pkg_.pos;
