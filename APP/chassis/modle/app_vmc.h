@@ -20,7 +20,7 @@ typedef struct {
 typedef struct {
     float force_L, leg_tor; //输入的沿着腿的力和腿的扭矩
     float force_x, force_y; //输入的笛卡尔坐标系下的力
-    float theta_m1, theta_m2, leg_theta, leg_len;
+    float theta1, theta2, leg_theta, leg_len;
 }update_pkg;
     class app_vmc {
     public:
@@ -28,7 +28,7 @@ typedef struct {
         void tor_clc(update_pkg pkg, E_LEG_SWITCH select);
         motor_tor tor_get() {return tor_;}
     private:
-        void VMC_clc(float theta_m1, float theta_m2);
+        void VMC_clc(float theta1, float theta2);
         float jacobin[4] = {};
         float p_force[2] = {};
         float c_force[2] = {};

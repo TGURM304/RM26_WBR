@@ -17,11 +17,15 @@
 #define L_b 0.1125f
 
 using namespace VMC;
-void app_vmc::VMC_clc(float theta_m1, float theta_m2) {
-    jacobin[0] = -(L1*Sin(theta_m1)) - L2*(1 + (1 + (Power(L_a,2)*Sin(theta_m1 - theta_m2))/(Power(L_b,2)*Sqrt(1 - Power(-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2),2)/Power(L_b,4))))/2.)*Sin((3*theta_m1 - theta_m2 + ArcCos((-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2))/Power(L_b,2)))/2.);
-    jacobin[1] = -0.5f*(L2*(-1 - (Power(L_a,2)*Sin(theta_m1 - theta_m2))/(Power(L_b,2)*Sqrt(1 - Power(-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2),2)/Power(L_b,4))))*Sin((3*theta_m1 - theta_m2 + ArcCos((-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2))/Power(L_b,2)))/2.f));
-    jacobin[2] = L1*Cos(theta_m1) + L2*Cos((3*theta_m1 - theta_m2 + ArcCos((-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2))/Power(L_b,2)))/2.)*(1 + (1 + (Power(L_a,2)*Sin(theta_m1 - theta_m2))/(Power(L_b,2)*Sqrt(1 - Power(-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2),2)/Power(L_b,4))))/2.);
-    jacobin[3] = (L2*Cos((3*theta_m1 - theta_m2 + ArcCos((-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2))/Power(L_b,2)))/2.)*(-1 - (Power(L_a,2)*Sin(theta_m1 - theta_m2))/(Power(L_b,2)*Sqrt(1 - Power(-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2),2)/Power(L_b,4)))))/2.;
+void app_vmc::VMC_clc(float theta1, float theta2) {
+    // jacobin[0] = -(L1*Sin(theta_m1)) - L2*(1 + (1 + (Power(L_a,2)*Sin(theta_m1 - theta_m2))/(Power(L_b,2)*Sqrt(1 - Power(-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2),2)/Power(L_b,4))))/2.)*Sin((3*theta_m1 - theta_m2 + ArcCos((-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2))/Power(L_b,2)))/2.);
+    // jacobin[1] = -0.5f*(L2*(-1 - (Power(L_a,2)*Sin(theta_m1 - theta_m2))/(Power(L_b,2)*Sqrt(1 - Power(-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2),2)/Power(L_b,4))))*Sin((3*theta_m1 - theta_m2 + ArcCos((-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2))/Power(L_b,2)))/2.f));
+    // jacobin[2] = L1*Cos(theta_m1) + L2*Cos((3*theta_m1 - theta_m2 + ArcCos((-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2))/Power(L_b,2)))/2.)*(1 + (1 + (Power(L_a,2)*Sin(theta_m1 - theta_m2))/(Power(L_b,2)*Sqrt(1 - Power(-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2),2)/Power(L_b,4))))/2.);
+    // jacobin[3] = (L2*Cos((3*theta_m1 - theta_m2 + ArcCos((-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2))/Power(L_b,2)))/2.)*(-1 - (Power(L_a,2)*Sin(theta_m1 - theta_m2))/(Power(L_b,2)*Sqrt(1 - Power(-Power(L_a,2) + Power(L_b,2) + Power(L_a,2)*Cos(theta_m1 - theta_m2),2)/Power(L_b,4)))))/2.;
+    jacobin[0] = -L1*sin(theta1)-L2*sin(theta1+theta2);
+    jacobin[1] = -L2*sin(theta1+theta2);
+    jacobin[2] = L1*cos(theta1)+L2*cos(theta1+theta2);
+    jacobin[3] = L2*cos(theta1+theta2);
 }
 
 void app_vmc::tor_clc(update_pkg pkg, E_LEG_SWITCH select) {
@@ -31,7 +35,7 @@ void app_vmc::tor_clc(update_pkg pkg, E_LEG_SWITCH select) {
         p_tor1 = &tor_.p_right_tor1, c_tor1 = &tor_.c_right_tor1;
         p_tor2 = &tor_.p_right_tor2, c_tor2 = &tor_.c_right_tor2;
     }
-    VMC_clc(pkg.theta_m1,pkg.theta_m2);
+    VMC_clc(pkg.theta1,pkg.theta2);
     Matrixf<2,2> Jacobin_matrix(jacobin);
     Jacobin_matrix = Jacobin_matrix.trans();
     p_force[0] = -cos(pkg.leg_theta-PI/2)*pkg.leg_tor/pkg.leg_len-sin(pkg.leg_theta-PI/2)*pkg.force_L;
