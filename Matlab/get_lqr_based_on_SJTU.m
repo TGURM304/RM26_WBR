@@ -111,6 +111,7 @@ rules = {
 };
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 此处输入机器人的实际参数
+% 此处机器人参数是经过理想化处理的
 sym_2_real = {
     R_w, 0.06; %轮半径
     R_l, 0.165; %机体半径
@@ -153,6 +154,18 @@ ddtheta_lr_sol = taylor(ddtheta_lr_sol, [theta_ll, theta_lr, theta_b], 'Order', 
 ddtheta_b_sol = taylor(ddtheta_b_sol, [theta_ll, theta_lr, theta_b], 'Order', 2);
 
 formulas = [ddtheta_wl_sol,ddtheta_wr_sol,ddtheta_ll_sol,ddtheta_lr_sol,ddtheta_b_sol];
+
+x = [theta_ll; theta_lr; theta_b];
+u = [T_lwl; T_lwr; T_bll; T_blr];
+%%修改Q矩阵和R矩阵
+%S dot_S phi dot_phi tehta_ll dot_theta_ll theta_lr dot_theta_lr theta_b dot_theta_b
+%T_lwl T_lwr T_bll T_blr
+matrix_Q = diag([4 2 15 3 4 1 4 1 8 1]);  % diag函数用于产生对角矩阵
+matrix_R = diag([0.8 0.8 0.5 0.5]);
+
+%到此为止，我们输出的是一个保留与腿长相关的变量的方程式
+%取消注释到275行就是实现了简化模型控制的求解
+%{
 for i = 1:size(sym_2_real,1)
     formulas = subs(formulas,sym_2_real(i,1),sym_2_real(i,2));
 end
@@ -160,8 +173,7 @@ for i = 1:length(formulas)
     disp(formulas(i));
 end
 disp(formulas);
-x = [theta_ll; theta_lr; theta_b];
-u = [T_lwl; T_lwr; T_bll; T_blr];
+
 
 A_sym = jacobian(formulas, x);
 B_sym = jacobian(formulas, u);
@@ -172,11 +184,6 @@ jacobi_A = A_function(0.1,0.1);
 jacobi_B = B_function(0.1,0.1);
 temp3 = write_data_a(jacobi_A,1,1,0.1,0.1);
 temp4 = write_data_b(jacobi_B,1,1,0.1,0.1);
-%%修改Q矩阵和R矩阵
-%S dot_S phi dot_phi tehta_ll dot_theta_ll theta_lr dot_theta_lr theta_b dot_theta_b
-%T_lwl T_lwr T_bll T_blr
-matrix_Q = diag([4 2 15 3 4 1 4 1 8 1]);  % diag函数用于产生对角矩阵
-matrix_R = diag([0.8 0.8 0.5 0.5]);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %定腿长
@@ -251,6 +258,11 @@ end
 [K, S, E] = lqr(temp3,temp4,matrix_Q,matrix_R);
 toc;
 
+%{
+最后data_ary输出的是六个一组的系数，x是左腿长度，y是右腿长度
+分别为'x0y0','x0_y0','x1_y0','x0_y1','x2_y0','x1_y1','x0_y2'
+%}
+%}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function matrix_a = write_data_a(matrix_j,R_w_ac,R_l_ac,l_l_ac,l_r_ac)
     temp = zeros(10);
@@ -271,6 +283,7 @@ function matrix_a = write_data_a(matrix_j,R_w_ac,R_l_ac,l_l_ac,l_r_ac)
     end
     matrix_a = temp;
 end
+
 function matrix_b = write_data_b(matrix_j,R_w_ac,R_l_ac,l_l_ac,l_r_ac)
     temp = zeros(10,4);
     for i = 3:5
@@ -321,9 +334,74 @@ for i = 1:rows
 end
 fprintf("\n};\n");
 end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%{
-最后data_ary输出的是六个一组的系数，x是左腿长度，y是右腿长度
-分别为'x0y0','x0_y0','x1_y0','x0_y1','x2_y0','x1_y1','x0_y2'
-
-%}
+robot_data_const = {
+    R_w, 0.06; %轮半径
+    R_l, 0.165; %机体半径
+    I_b , 7020.46/1000/1000; %车体的转动惯量
+    l_c , 18.17/1000; %身体质心到髋关节中点连线距离
+    m_w , 0.495; %轮的质量
+    m_l , 0.585; %腿的质量
+    m_b , 3; %机体质量
+    I_w , 1047.352/1000/1000; %轮的转动惯量
+    I_z , 96173.7/1000/1000; %整个车的转动惯量 
+    g, 9.8;
+};
+leg_times = 4;%有多少个腿长
+T = readtable("robot_data.xlsx");
+matrix_Ks = zeros(4,10,leg_times^2);%所有的腿长组合下的K矩阵数值
+leg_min = 1;%腿长最小值
+delta = 0.05;%变化步长
+w_ac = 0.6; %轮子半径
+Rl_ac = 0.4; %轮轮间距的一半
+real_formula = formulas;%定义变量：接近实际情况的方程式
+for i = 1:size(robot_data_const)
+    real_formula = subs(real_formula,robot_data_const(i,1),robot_data_const(i,2));
+end
+for i = 1:leg_times
+    for j = 1:leg_times
+        robot_data_dynamic = {
+          l_wl, T.L_w(i);
+          l_wr, T.L_w(j);
+          l_bl, T.L_b(i);
+          l_br, T.L_b(j);
+          I_ll, T.I_l(i);
+          I_lr, T.I_l(j);
+          l_l, T.leg(i);
+          l_r, T.leg(j);
+        };
+        temp = real_formula;
+        for c = 1:size(robot_data_dynamic,1)
+            temp = subs(temp,robot_data_dynamic(c,1),robot_data_dynamic(c,2));
+        end
+        A_temp_sym = jacobian(temp,x);
+        B_temp_sym = jacobian(temp,u);
+        A_matrix = write_data_a(A_temp_sym,w_ac,Rl_ac,T.leg(i),T.leg(j));
+        B_matrix = write_data_b(B_temp_sym,w_ac,Rl_ac,T.leg(i),T.leg(j));
+        [K, S, E] = lqr(A_matrix,B_matrix,matrix_Q,matrix_R);
+        matrix_Ks(:,:,(i-1)*4+j) = K;
+    end
+end
+%接下来对矩阵K进行拟合
+coeffMatrix = zeros(40,6);
+x = zeros(leg_times^2,1);%左腿腿长
+y = zeros(leg_times^2,1);%右腿腿长
+ft = fittype('poly22');
+for i = 1:leg_times
+    for j = 1:leg_times
+        k = (i-1)*leg_times+j;
+        x(k,1) = leg_min+delta*(i-1);
+        y(k,1) = leg_min+delta*(j-1);
+    end
+end
+for i = 1:4
+    for j = 1:10
+        z = squeeze(matrix_Ks(i,j,:));
+        fit_answer = fit([x,y],z,ft);
+        coeffs = coeffvalues(fit_answer);
+        for k =1:6
+            coeffMatrix((i-1)*10+j,k) = coeffs(k);
+        end
+    end
+end
