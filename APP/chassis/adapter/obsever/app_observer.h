@@ -11,7 +11,7 @@
 
 #include <atomic>
 
-namespace Observer {
+namespace Relay {
 using namespace Motor_Pkg;
 #define L1 0.210f
 #define L2 0.250f
@@ -19,7 +19,7 @@ using namespace Motor_Pkg;
 #define KATE_B 0.1125f
     typedef struct {
         float body_roll; //用于姿态控制
-        float wheel_S, wheel_ver;//用于LQR的轮位移S和速度dot_S
+        float wheel_delta_S, wheel_ver;//用于LQR的轮位移S和速度dot_S
         float body_phi, body_gro;//用于LQR的偏航角yaw和dot_yaw
         float left_theta,left_dot_theta;
         float right_theta, right_dot_theta;//用于LQR的左右腿的倾角theta和dot_theta
@@ -33,7 +33,8 @@ using namespace Motor_Pkg;
         float pos_x, pos_y;
         float theta, dot_theta;
         float old_theta;
-        float L0;
+        float theta_1, theta_2;//此处是等效腿上关节的夹角
+        float L0, old_L0, dot_L0;
     }leg_status;
     typedef enum {
         E_LEFT,
@@ -45,16 +46,17 @@ using namespace Motor_Pkg;
         :joint1_(J1),joint2_(J2),joint3_(J3),joint4_(J4),right_dynamic_(D1),left_dynamic_(D2), ins_(ins) {
             pos = ins_->get_pos();
         }
-        void update();
+        void update();//更新状态
+        void clear_s();
         car_status get_lqr_status() {return LQR_status_;}
-        leg_status get_leg_status(leg_switch leg) {
+        leg_status get_leg_status(leg_switch leg) {//反馈真实状态的腿的情况
             if(leg == E_LEFT)
                 return left_leg_status_;
             else
                 return right_leg_status_;
         }
     private:
-        void leg_clc(float theta_big, float theta_small,leg_switch leg);
+        void leg_clc(float theta_big, float theta_small,leg_switch leg);//腿部连杆映射
         Motor_Pkg::Dynamic *left_dynamic_;
         Motor_Pkg::Dynamic *right_dynamic_;
         Motor_Pkg::Joint *joint1_;
@@ -67,9 +69,10 @@ using namespace Motor_Pkg;
         car_status LQR_status_;
         leg_status left_leg_status_;
         leg_status right_leg_status_;
-
         TrimmedMeanFilter<10,float32_t> left_filter_;
         TrimmedMeanFilter<10,float32_t> right_filter_;
+        TrimmedMeanFilter<10,float32_t> left_L0_filter_;
+        TrimmedMeanFilter<10,float32_t> right_L0_filter_;
     };
 } // Observer
 

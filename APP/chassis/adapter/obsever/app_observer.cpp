@@ -5,7 +5,7 @@
 #include "app_observer.h"
 
 #include "bsp_uart.h"
-using namespace Observer;
+using namespace Relay;
 void StateMapping::update() {
     ins_->update();
     motors_.D1 = right_dynamic_->get_status();
@@ -20,7 +20,7 @@ void StateMapping::update() {
     leg_clc(motors_.J3.pos,motors_.J4.pos,E_LEFT);
 
     LQR_status_.body_roll = pos->body_roll;
-    LQR_status_.wheel_S += (motors_.D1.pos-motors_.D1.old_pos
+    LQR_status_.wheel_delta_S += (motors_.D1.pos-motors_.D1.old_pos
         +motors_.D2.pos-motors_.D2.old_pos)/2;
     LQR_status_.wheel_ver = (motors_.D1.speed+motors_.D2.speed)/2;
     LQR_status_.body_phi = pos->body_phi;
@@ -51,19 +51,29 @@ void StateMapping::leg_clc(float theta_big, float theta_small,leg_switch leg){
     kate_gama = acosf((2*KATE_B*KATE_B-kate_c2)/(2*KATE_B*KATE_B));
     theta2 = -(kate_alpha+kate_gama)/2;
 
+    leg_ptr->old_L0 = leg_ptr->L0;
     leg_ptr->old_theta = leg_ptr->theta;
     leg_ptr->pos_x = L1*cosf(theta1)+L2*cosf(theta1+theta2);
     leg_ptr->pos_y = L1*sinf(theta1)+L2*sinf(theta1+theta2);
     leg_ptr->L0 = sqrtf(leg_ptr->pos_x*leg_ptr->pos_x+leg_ptr->pos_y*leg_ptr->pos_y);
     leg_ptr->theta = atan2(leg_ptr->pos_y,leg_ptr->pos_x);
+    leg_ptr->theta_1 = theta1;
+    leg_ptr->theta_2 = theta2;
     if(leg == E_LEFT) {
         left_filter_.input(leg_ptr->theta - leg_ptr->old_theta);
         leg_ptr->dot_theta = left_filter_.get()*1000;
+        left_L0_filter_.input(leg_ptr->L0 - leg_ptr->old_L0);
+        leg_ptr->dot_L0 = left_L0_filter_.get()*1000;
     }
     else if(leg == E_RIGHT) {
         right_filter_.input(leg_ptr->theta - leg_ptr->old_theta);
         leg_ptr->dot_theta = right_filter_.get()*1000;
-        // bsp_uart_printf(E_UART_DEBUG,"%f,%f\r\n",theta1,theta2);
+        right_L0_filter_.input(leg_ptr->L0 - leg_ptr->old_L0);
+        leg_ptr->dot_L0 = right_L0_filter_.get()*1000;
     }
-
 }
+
+void StateMapping::clear_s(){
+    LQR_status_.wheel_delta_S = 0;
+}
+
