@@ -21,7 +21,6 @@ class LQR_controller {
      * 我们希望他只作为一个运算黑箱存在
      * 输入delta，运算选项，输出torque
      */
-
 public:
     LQR_controller(float32_t *static_K, float32_t *dynamic_coe) {
         memcpy(static_K,static_K_,sizeof(float32_t)*40);

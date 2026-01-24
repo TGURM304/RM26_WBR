@@ -5,7 +5,7 @@
 #ifndef APP_VMC_H
 #define APP_VMC_H
 #include <matrix.h>
-
+#include "app_relay.h"
 namespace VMC {
 typedef enum {
     E_Left,
@@ -20,12 +20,11 @@ typedef struct {
 typedef struct {
     float force_L, leg_tor; //输入的沿着腿的力和腿的扭矩
     float force_x, force_y; //输入的笛卡尔坐标系下的力
-    float theta1, theta2, leg_theta, leg_len;
-}update_pkg;
+}ctrl_pkg;
     class app_vmc {
     public:
         app_vmc() = default;
-        void tor_clc(update_pkg pkg, E_LEG_SWITCH select);
+        void tor_clc(ctrl_pkg pkg, Relay::relay_leg status,E_LEG_SWITCH select);
         motor_tor tor_get() {return tor_;}
     private:
         void VMC_clc(float theta1, float theta2);
