@@ -113,25 +113,25 @@ rules = {
 % 此处输入机器人的实际参数
 % 此处机器人参数是经过理想化处理的
 sym_2_real = {
-    R_w, 0.06; %轮半径
-    R_l, 0.165; %机体半径
+    R_w, 0.058; %轮半径
+    R_l, 0.4386/2; %机体半径
     l_wl, l_l/2; %驱动轮质心到左右腿质心距离
     l_wr, l_r/2; %默认为腿长一半
     l_bl, l_l/2; %髋关节中点到腿质心距离
     l_br, l_r/2; %默认为腿长一半
-    I_ll, 847/1000/1000; %腿的转动惯量，轴心为髋关节中点
-    I_lr, 847/1000/1000;
-    I_b , 7020.46/1000/1000; %车体的转动惯量
-    l_c , 18.17/1000; %身体质心到髋关节中点连线距离
-    m_w , 0.495; %轮的质量
-    m_l , 0.585; %腿的质量
-    m_b , 3; %机体质量
-    I_w , 1047.352/1000/1000; %轮的转动惯量
-    I_z , 96173.7/1000/1000; %整个车的转动惯量 
+    I_ll, 26197.3/1000/1000; %腿的转动惯量，轴心为髋关节中点
+    I_lr, 26197.3/1000/1000;
+    I_b , 356338/1000/1000; %车体的转动惯量
+    l_c , 10.7/1000; %身体质心到髋关节中点连线距离
+    m_w , 0.627; %轮的质量
+    m_l , 0.785; %腿的质量
+    m_b , 16.08; %机体质量
+    I_w , 656.352/1000/1000; %轮的转动惯量
+    I_z , 543186.7/1000/1000; %整个车的转动惯量 
     g, 9.8;
     };
-R_w_ac = 0.06;
-R_l_ac = 0.165;
+R_w_ac = 0.058;
+R_l_ac = 0.4386/2;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 eqations = [sj_eq1, sj_eq2, sj_eq3, sj_eq4, sj_eq5];
 target = [ddtheta_wl,ddtheta_wr,ddtheta_ll, ddtheta_lr, ddtheta_b];
@@ -164,7 +164,7 @@ matrix_Q = diag([4 2 15 3 4 1 4 1 8 1]);  % diag函数用于产生对角矩阵
 matrix_R = diag([0.8 0.8 0.5 0.5]);
 
 %到此为止，我们输出的是一个保留与腿长相关的变量的方程式
-%取消注释到275行就是实现了简化模型控制的求解
+%取消注释到265行就是实现了简化模型控制的求解
 %{
 for i = 1:size(sym_2_real,1)
     formulas = subs(formulas,sym_2_real(i,1),sym_2_real(i,2));
@@ -180,23 +180,24 @@ B_sym = jacobian(formulas, u);
 
 A_function = matlabFunction(A_sym,'Vars',[l_l,l_r]);
 B_function = matlabFunction(B_sym,'Vars',[l_l,l_r]);
-jacobi_A = A_function(0.1,0.1);
-jacobi_B = B_function(0.1,0.1);
-temp3 = write_data_a(jacobi_A,1,1,0.1,0.1);
-temp4 = write_data_b(jacobi_B,1,1,0.1,0.1);
+jacobi_A = A_function(0.25,0.25);
+jacobi_B = B_function(0.25,0.25);
+temp3 = write_data_a(jacobi_A,R_w_ac,R_l_ac,0.25,0.25);
+temp4 = write_data_b(jacobi_B,R_w_ac,R_l_ac,0.25,0.25);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %定腿长
-static_a = write_data_a(jacobi_A,R_w_ac,R_l_ac,0.12,0.12);
-static_b = write_data_b(jacobi_B,R_w_ac,R_l_ac,0.12,0.12);
+static_a = write_data_a(jacobi_A,R_w_ac,R_l_ac,0.25,0.25);
+static_b = write_data_b(jacobi_B,R_w_ac,R_l_ac,0.25,0.25);
 [K,S,E] = lqr(static_a,static_b,matrix_Q,matrix_R);
+disp("static0.25")
 disp(K);
 mat2c(K,'myMat');
 % leg_length
 % 设置腿的长度和步长
-start_num = 0.1;
+start_num = 0.17;
 step = 0.01;
-end_num = 0.25;
+end_num = 0.30;
 leg_length = start_num:step:end_num
 %%均不取到end_num
 times = floor((end_num-start_num)/step);
@@ -217,10 +218,10 @@ for ptr_i = 1:4
         z = z(:);
         x = zeros(times^2,1);
         y = zeros(times^2,1);
-        for add_ll = 1:15
-            for add_lr = 1:15
-                x((add_ll-1)*15+add_lr,1) = add_ll/10;
-                y((add_ll-1)*15+add_lr,1) = add_lr/10;
+        for add_ll = 1:times
+            for add_lr = 1:times
+                x((add_ll-1)*times+add_lr,1) = start_num+(add_ll-1)*step;
+                y((add_ll-1)*times+add_lr,1) = start_num+(add_lr-1)*step;
             end
         end
         ft = fittype('poly22');   % poly11 poly22 poly33 都可以
@@ -336,40 +337,77 @@ fprintf("\n};\n");
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+format long g
 robot_data_const = {
-    R_w, 0.06; %轮半径
-    R_l, 0.165; %机体半径
-    I_b , 7020.46/1000/1000; %车体的转动惯量
-    l_c , 18.17/1000; %身体质心到髋关节中点连线距离
-    m_w , 0.495; %轮的质量
-    m_l , 0.585; %腿的质量
-    m_b , 3; %机体质量
-    I_w , 1047.352/1000/1000; %轮的转动惯量
-    I_z , 96173.7/1000/1000; %整个车的转动惯量 
+    R_w, 0.058; %轮半径
+    R_l, 0.4386/2; %机体半径
+    I_b , 356338.03/1000/1000; %车体的转动惯量
+    l_c , 10.17/1000; %身体质心到髋关节中点连线距离
+    m_w , 0.627; %轮的质量
+    m_l , 0.785; %腿的质量
+    m_b , 16.08; %机体质量
+    I_w , 656.6/1000/1000; %轮的转动惯量
+    I_z , 543186.7/1000/1000; %整个车的转动惯量 
     g, 9.8;
 };
-leg_times = 4;%有多少个腿长
+leg_times = 20;%有多少个腿长
 T = readtable("robot_data.xlsx");
 matrix_Ks = zeros(4,10,leg_times^2);%所有的腿长组合下的K矩阵数值
-leg_min = 1;%腿长最小值
-delta = 0.05;%变化步长
-w_ac = 0.6; %轮子半径
-Rl_ac = 0.4; %轮轮间距的一半
+w_ac = 0.058; %轮子半径
+Rl_ac = 0.4386/2; %轮轮间距的一半
+
+% test = formulas;
+% for i = 1:size(robot_data_const,1)
+%     test = subs(test,robot_data_const(i,1),robot_data_const(i,2));
+% end
+% A_sym = jacobian(test,x);
+% B_sym = jacobian(test,u);
+% A_function = matlabFunction(A_sym,'Vars',[l_l,l_r]);
+% B_function = matlabFunction(B_sym,'Vars',[l_l,l_r]);
+% jacobi_A = A_function(0.25,0.25);
+% jacobi_B = B_function(0.25,0.25);
+% static_a = write_data_a(jacobi_A,w_ac,Rl_ac,0.25,0.25);
+% static_b = write_data_b(jacobi_B,w_ac,Rl_ac,0.25,0.25);
+% [K,S,E] = lqr(static_a,static_b,matrix_Q,matrix_R);
+% disp(K)
+
 real_formula = formulas;%定义变量：接近实际情况的方程式
 for i = 1:size(robot_data_const)
     real_formula = subs(real_formula,robot_data_const(i,1),robot_data_const(i,2));
 end
+%定腿长控制系统
+const_leg = {
+      l_wl, T.L_w(9)/1000;
+      l_wr, T.L_w(9)/1000;
+      l_bl, T.L_b(9)/1000;
+      l_br, T.L_b(9)/1000;
+      I_ll, T.I_l(9)/1000/1000;
+      I_lr, T.I_l(9)/1000/1000;
+      l_l, T.leg(9)/1000;
+      l_r, T.leg(9)/1000;
+};
+const_formula = real_formula;
+for c = 1:size(const_leg,1)
+    const_formula = subs(const_formula,const_leg(c,1),const_leg(c,2));
+end
+A_const_sym = jacobian(const_formula,x);
+B_const_sym = jacobian(const_formula,u);
+A_const_matrix = write_data_a(A_const_sym,w_ac,Rl_ac,T.leg(9),T.leg(9));
+B_const_matrix = write_data_b(B_const_sym,w_ac,Rl_ac,T.leg(9),T.leg(9));
+[K, S, E] = lqr(A_const_matrix,B_const_matrix,matrix_Q,matrix_R);
+mat2c(K,"K_const")
+%变腿长控制系统
 for i = 1:leg_times
     for j = 1:leg_times
         robot_data_dynamic = {
-          l_wl, T.L_w(i);
-          l_wr, T.L_w(j);
-          l_bl, T.L_b(i);
-          l_br, T.L_b(j);
-          I_ll, T.I_l(i);
-          I_lr, T.I_l(j);
-          l_l, T.leg(i);
-          l_r, T.leg(j);
+          l_wl, T.L_w(i)/1000;
+          l_wr, T.L_w(j)/1000;
+          l_bl, T.L_b(i)/1000;
+          l_br, T.L_b(j)/1000;
+          I_ll, T.I_l(i)/1000/1000;
+          I_lr, T.I_l(j)/1000/1000;
+          l_l, T.leg(i)/1000;
+          l_r, T.leg(j)/1000;
         };
         temp = real_formula;
         for c = 1:size(robot_data_dynamic,1)
@@ -380,19 +418,19 @@ for i = 1:leg_times
         A_matrix = write_data_a(A_temp_sym,w_ac,Rl_ac,T.leg(i),T.leg(j));
         B_matrix = write_data_b(B_temp_sym,w_ac,Rl_ac,T.leg(i),T.leg(j));
         [K, S, E] = lqr(A_matrix,B_matrix,matrix_Q,matrix_R);
-        matrix_Ks(:,:,(i-1)*4+j) = K;
+        matrix_Ks(:,:,(i-1)*leg_times+j) = K;
     end
 end
 %接下来对矩阵K进行拟合
-coeffMatrix = zeros(40,6);
+coeffMatrix = zeros(40,6);%拟合信息
 x = zeros(leg_times^2,1);%左腿腿长
 y = zeros(leg_times^2,1);%右腿腿长
 ft = fittype('poly22');
 for i = 1:leg_times
     for j = 1:leg_times
         k = (i-1)*leg_times+j;
-        x(k,1) = leg_min+delta*(i-1);
-        y(k,1) = leg_min+delta*(j-1);
+        x(k,1) = T.leg(i)/1000;
+        y(k,1) = T.leg(j)/1000;
     end
 end
 for i = 1:4
@@ -405,3 +443,29 @@ for i = 1:4
         end
     end
 end
+mat2c(coeffMatrix,"coef");%拟合系数
+% 绘图
+% coeffs = [coeffMatrix(15,1), coeffMatrix(15,2),coeffMatrix(15,3),...
+%     coeffMatrix(15,4),coeffMatrix(15,5),coeffMatrix(15,6),];
+% [xq, yq] = meshgrid( ...
+%     linspace(min(x), max(x), 50), ...
+%     linspace(min(y), max(y), 50));
+% z = squeeze(matrix_Ks(2,5,:));
+% zq = coeffs(1) ...
+%    + coeffs(2)*xq ...
+%    + coeffs(3)*yq ...
+%    + coeffs(4)*xq.^2 ...
+%    + coeffs(5)*xq.*yq ...
+%    + coeffs(6)*yq.^2;
+% figure;
+% hold on;
+% scatter3(x, y, z, 50, z, 'filled');
+% surf(xq, yq, zq, ...
+%     'FaceAlpha', 0.7, ...
+%     'EdgeColor', 'none');
+% xlabel('l_l');
+% ylabel('l_r');
+% zlabel('z');
+% colorbar;
+toc
+%}
