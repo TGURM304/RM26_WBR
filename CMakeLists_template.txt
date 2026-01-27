@@ -97,3 +97,14 @@ add_custom_command(TARGET $${PROJECT_NAME}.elf POST_BUILD
         COMMAND $${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:$${PROJECT_NAME}.elf> $${BIN_FILE}
         COMMENT "Building $${HEX_FILE}
 Building $${BIN_FILE}")
+
+add_custom_target(flash_and_verify
+    COMMAND openocd
+        -f ${CMAKE_CURRENT_LIST_DIR}/daplink.cfg
+        -c "init"
+        -c "reset halt"
+        -c "program $<TARGET_FILE:${CMAKE_PROJECT_NAME}> verify reset exit"
+    DEPENDS ${CMAKE_PROJECT_NAME}
+    COMMENT "Flashing and verifying the firmware via OpenOCD"
+    USES_TERMINAL
+)

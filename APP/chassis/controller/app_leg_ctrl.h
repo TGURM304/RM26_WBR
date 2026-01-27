@@ -24,10 +24,10 @@ namespace Controller {
             left_omega_pid_(omega_param), right_omega_pid_(omega_param),
             left_deg_pid_(deg_param), right_deg_pid_(deg_param) {
         }
-        void left_len_update(Relay::leg_status left_leg, float target_len);
-        void right_len_update(Relay::leg_status right_leg, float target_len);
-        void left_deg_update(Relay::leg_status left_leg, float target_deg);
-        void right_deg_update(Relay::leg_status right_leg, float target_deg);
+        void left_len_update(Relay::relay_leg left_leg, float target_len);
+        void right_len_update(Relay::relay_leg right_leg, float target_len);
+        void left_deg_update(Relay::relay_leg left_leg, float target_deg);
+        void right_deg_update(Relay::relay_leg right_leg, float target_deg);
         leg_output get_output() {return output_;}
         void leg_clear();
     private:
