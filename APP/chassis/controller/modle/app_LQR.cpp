@@ -7,19 +7,20 @@
 using namespace LQR;
 
 void LQR_controller::static_clc(float32_t *delta_state) {
-    memcpy(delta_state,state_delta_,sizeof(float32_t)*10);
+    memcpy(state_delta_,delta_state,sizeof(float32_t)*10);
     Matrixf<10,1> delta_matrix(state_delta_);
+    Matrixf<4,10> static_matrix(static_K_);
     Matrixf<4,1> out_matrix = static_matrix*delta_matrix;
     for(int i = 0; i<4; i++) {
         out_tor[i] = out_matrix[i][0];
     }
 }
 
-void LQR_controller::dynamic_clc(float32_t *delta_state, leg_state_pkg leg_pkg_) {
+void LQR_controller::dynamic_clc(float32_t *delta_state, Relay::relay_leg left_leg, Relay::relay_leg right_leg) {
     memcpy(delta_state,state_delta_,sizeof(float32_t)*10);
-    float32_t x0y0=1.0f, x1y0=leg_pkg_.left_L0, x0y1 = leg_pkg_.right_L0;
-    float32_t x2y0 = leg_pkg_.left_L0*leg_pkg_.left_L0, x0y2 = leg_pkg_.right_L0*leg_pkg_.right_L0;
-    float32_t x1y1 = leg_pkg_.left_L0*leg_pkg_.right_L0;
+    float32_t x0y0=1.0f, x1y0=left_leg.L0, x0y1 = right_leg.L0;
+    float32_t x2y0 = left_leg.L0*left_leg.L0, x0y2 = right_leg.L0*right_leg.L0;
+    float32_t x1y1 = left_leg.L0*right_leg.L0;
     for(int i =0; i< 40; i++) {
         dynamic_K_[i] = dynamic_coe_[i*6]*x0y0 + dynamic_coe_[i*6+1]*x1y0
             + dynamic_coe_[i*6+2]*x0y1 + dynamic_coe_[i*6+3]*x2y0

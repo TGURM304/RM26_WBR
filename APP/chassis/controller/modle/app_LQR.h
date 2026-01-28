@@ -23,19 +23,17 @@ class LQR_controller {
      */
 public:
     LQR_controller(float32_t *static_K, float32_t *dynamic_coe) {
-        memcpy(static_K,static_K_,sizeof(float32_t)*40);
-        memcpy(dynamic_coe,dynamic_coe_,sizeof(float32_t)*240);
-        static_matrix.arm_mat_.pData = static_K_;
+        memcpy(static_K_,static_K,sizeof(float32_t)*40);
+        memcpy(dynamic_coe_,dynamic_coe,sizeof(float32_t)*240);
     }
     void static_clc(float32_t *delta_state);
-    void dynamic_clc(float32_t *delta_state,leg_state_pkg leg_pkg_);
+    void dynamic_clc(float32_t *delta_state, Relay::relay_leg left_leg, Relay::relay_leg right_leg);
     float32_t* get_out_tor() {
         return out_tor;
     }
 private:
     float32_t static_K_[40]{};
     float32_t dynamic_coe_[240]{};
-    Matrixf<4,10> static_matrix;
     float32_t dynamic_K_[40] = {0.0f};
     float32_t state_delta_[10] = {0.0f};
     float32_t out_tor[4] = {0.0f};

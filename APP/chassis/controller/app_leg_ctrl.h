@@ -7,7 +7,8 @@
 #include "app_relay.h"
 #include "ctrl_pid.h"
 
-namespace Controller {
+using namespace Controller;
+namespace LegController {
     typedef struct {
         float32_t tor_left, tor_right;
         float32_t force_left, force_right;

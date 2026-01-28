@@ -5,7 +5,10 @@
 #include "app_motor_pkg.h"
 
 void Motor_Pkg::Joint::set_tor(float tor) {
-    control(0,0,0,0,tor*dir_);
+    float temp = tor;
+    if(tor > 40) temp = 40;
+    else if(tor < -40) temp = -40;
+    control(0,0,0,0,temp*dir_);
 }
 
 
