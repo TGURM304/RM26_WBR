@@ -125,7 +125,7 @@ sym_2_real = {
     l_c , 10.7/1000; %身体质心到髋关节中点连线距离
     m_w , 0.627; %轮的质量
     m_l , 0.785; %腿的质量
-    m_b , 16.08; %机体质量
+    m_b , 14.08; %机体质量
     I_w , 656.352/1000/1000; %轮的转动惯量
     I_z , 543186.7/1000/1000; %整个车的转动惯量 
     g, 9.8;
@@ -160,7 +160,7 @@ u = [T_lwl; T_lwr; T_bll; T_blr];
 %%修改Q矩阵和R矩阵
 %S dot_S phi dot_phi tehta_ll dot_theta_ll theta_lr dot_theta_lr theta_b dot_theta_b
 %T_lwl T_lwr T_bll T_blr
-matrix_Q = diag([100 1 4000 1 1000 10 1000 10 4000 1]);  % diag函数用于产生对角矩阵
+matrix_Q = diag([500 1 600 30 500 10 500 10 2000 1]);  % diag函数用于产生对角矩阵
 matrix_R = diag([10 10 1 1]);
 
 %到此为止，我们输出的是一个保留与腿长相关的变量的方程式
@@ -182,8 +182,8 @@ A_function = matlabFunction(A_sym,'Vars',[l_l,l_r]);
 B_function = matlabFunction(B_sym,'Vars',[l_l,l_r]);
 jacobi_A = A_function(0.25,0.25);
 jacobi_B = B_function(0.25,0.25);
-temp3 = write_data_a(jacobi_A,R_w_ac,R_l_ac,0.25,0.25);
-temp4 = write_data_b(jacobi_B,R_w_ac,R_l_ac,0.25,0.25);
+temp3 = write_data_a(jacobi_A,R_w_ac,R_l_ac,0.15,0.15);
+temp4 = write_data_b(jacobi_B,R_w_ac,R_l_ac,0.15,0.15);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %定腿长
