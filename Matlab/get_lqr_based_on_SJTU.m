@@ -165,7 +165,7 @@ matrix_R = diag([10 10 1 1]);
 
 %到此为止，我们输出的是一个保留与腿长相关的变量的方程式
 %取消注释到265行就是实现了简化模型控制的求解
-
+%{
 for i = 1:size(sym_2_real,1)
     formulas = subs(formulas,sym_2_real(i,1),sym_2_real(i,2));
 end
@@ -263,7 +263,7 @@ toc;
 最后data_ary输出的是六个一组的系数，x是左腿长度，y是右腿长度
 分别为'x0y0','x0_y0','x1_y0','x0_y1','x2_y0','x1_y1','x0_y2'
 %}
-
+%}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function matrix_a = write_data_a(matrix_j,R_w_ac,R_l_ac,l_l_ac,l_r_ac)
     temp = zeros(10);
@@ -336,7 +336,7 @@ end
 fprintf("\n};\n");
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%{
+
 format long g
 robot_data_const = {
     R_w, 0.058; %轮半径
@@ -397,76 +397,86 @@ B_const_matrix = write_data_b(B_const_sym,w_ac,Rl_ac,T.leg(9),T.leg(9));
 [K, S, E] = lqr(A_const_matrix,B_const_matrix,matrix_Q,matrix_R);
 mat2c(K,"K_const")
 %变腿长控制系统
-% for i = 1:leg_times
-%     for j = 1:leg_times
-%         robot_data_dynamic = {
-%           l_wl, T.L_w(i)/1000;
-%           l_wr, T.L_w(j)/1000;
-%           l_bl, T.L_b(i)/1000;
-%           l_br, T.L_b(j)/1000;
-%           I_ll, T.I_l(i)/1000/1000;
-%           I_lr, T.I_l(j)/1000/1000;
-%           l_l, T.leg(i)/1000;
-%           l_r, T.leg(j)/1000;
-%         };
-%         temp = real_formula;
-%         for c = 1:size(robot_data_dynamic,1)
-%             temp = subs(temp,robot_data_dynamic(c,1),robot_data_dynamic(c,2));
-%         end
-%         A_temp_sym = jacobian(temp,x);
-%         B_temp_sym = jacobian(temp,u);
-%         A_matrix = write_data_a(A_temp_sym,w_ac,Rl_ac,T.leg(i),T.leg(j));
-%         B_matrix = write_data_b(B_temp_sym,w_ac,Rl_ac,T.leg(i),T.leg(j));
-%         [K, S, E] = lqr(A_matrix,B_matrix,matrix_Q,matrix_R);
-%         matrix_Ks(:,:,(i-1)*leg_times+j) = K;
-%     end
-% end
-%接下来对矩阵K进行拟合
-% coeffMatrix = zeros(40,6);%拟合信息
-% x = zeros(leg_times^2,1);%左腿腿长
-% y = zeros(leg_times^2,1);%右腿腿长
-% ft = fittype('poly22');
-% for i = 1:leg_times
-%     for j = 1:leg_times
-%         k = (i-1)*leg_times+j;
-%         x(k,1) = T.leg(i)/1000;
-%         y(k,1) = T.leg(j)/1000;
-%     end
-% end
-% for i = 1:4
-%     for j = 1:10
-%         z = squeeze(matrix_Ks(i,j,:));
-%         fit_answer = fit([x,y],z,ft);
-%         coeffs = coeffvalues(fit_answer);
-%         for k =1:6
-%             coeffMatrix((i-1)*10+j,k) = coeffs(k);
-%         end
-%     end
-% end
-% mat2c(coeffMatrix,"coef");%拟合系数
+for i = 1:leg_times
+    for j = 1:leg_times
+        robot_data_dynamic = {
+          l_wl, T.L_w(i)/1000;
+          l_wr, T.L_w(j)/1000;
+          l_bl, T.L_b(i)/1000;
+          l_br, T.L_b(j)/1000;
+          I_ll, T.I_l(i)/1000/1000;
+          I_lr, T.I_l(j)/1000/1000;
+          l_l, T.leg(i)/1000;
+          l_r, T.leg(j)/1000;
+        };
+        temp = real_formula;
+        for c = 1:size(robot_data_dynamic,1)
+            temp = subs(temp,robot_data_dynamic(c,1),robot_data_dynamic(c,2));
+        end
+        A_temp_sym = jacobian(temp,x);
+        B_temp_sym = jacobian(temp,u);
+        A_matrix = write_data_a(A_temp_sym,w_ac,Rl_ac,T.leg(i),T.leg(j));
+        B_matrix = write_data_b(B_temp_sym,w_ac,Rl_ac,T.leg(i),T.leg(j));
+        [K, S, E] = lqr(A_matrix,B_matrix,matrix_Q,matrix_R);
+        matrix_Ks(:,:,(i-1)*leg_times+j) = K;
+    end
+end
+% 接下来对矩阵K进行拟合
+coeffMatrix = zeros(40,6);%拟合信息
+x = zeros(leg_times^2,1);%左腿腿长
+y = zeros(leg_times^2,1);%右腿腿长
+ft = fittype('poly22');
+for i = 1:leg_times
+    for j = 1:leg_times
+        k = (i-1)*leg_times+j;
+        x(k,1) = T.leg(i)/1000;
+        y(k,1) = T.leg(j)/1000;
+    end
+end
+for i = 1:4
+    for j = 1:10
+        z = squeeze(matrix_Ks(i,j,:));
+        fit_answer = fit([x,y],z,ft);
+        coeffs = coeffvalues(fit_answer);
+        for k =1:6
+            coeffMatrix((i-1)*10+j,k) = coeffs(k);
+        end
+    end
+end
+mat2c(coeffMatrix,"coef");%拟合系数
 
 % 绘图
-% coeffs = [coeffMatrix(15,1), coeffMatrix(15,2),coeffMatrix(15,3),...
-%     coeffMatrix(15,4),coeffMatrix(15,5),coeffMatrix(15,6),];
-% [xq, yq] = meshgrid( ...
-%     linspace(min(x), max(x), 50), ...
-%     linspace(min(y), max(y), 50));
-% z = squeeze(matrix_Ks(2,5,:));
-% zq = coeffs(1) ...
-%    + coeffs(2)*xq ...
-%    + coeffs(3)*yq ...
-%    + coeffs(4)*xq.^2 ...
-%    + coeffs(5)*xq.*yq ...
-%    + coeffs(6)*yq.^2;
-% figure;
-% hold on;
-% scatter3(x, y, z, 50, z, 'filled');
-% surf(xq, yq, zq, ...
-%     'FaceAlpha', 0.7, ...
-%     'EdgeColor', 'none');
-% xlabel('l_l');
-% ylabel('l_r');
-% zlabel('z');
-% colorbar;
+% 拟合曲面计算（保持不变）
+coeffs = coeffMatrix(15,:);
+
+[xq, yq] = meshgrid( ...
+    linspace(min(x), max(x), 50), ...
+    linspace(min(y), max(y), 50));
+
+zq = coeffs(1) ...
+   + coeffs(2)*xq ...
+   + coeffs(3)*yq ...
+   + coeffs(4)*xq.^2 ...
+   + coeffs(5)*xq.*yq ...
+   + coeffs(6)*yq.^2;
+
+% 绘图：只显示网格曲面，不显示散点
+figure;
+
+% 纯黑色线框曲面
+surf(xq, yq, zq, ...
+    'FaceColor', 'none', ...     % 不显示面颜色
+    'EdgeColor', 'k', ...        % 网格线全黑
+    'LineWidth', 1);           % 线条加粗
+
+xlabel('l_l');
+ylabel('l_r');
+zlabel('z');
+title('Black wireframe fitted surface');
+
+grid on;
+view(45,30);
+
+
 toc
 %}

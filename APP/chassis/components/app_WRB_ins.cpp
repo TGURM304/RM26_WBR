@@ -8,7 +8,7 @@ void INS::app_WRB_ins::update() {
     posture_.body_phi_gry  = ins_->raw.gyro[2];
     posture_.body_roll     = -ins_->roll / 180.f * PI_F32;
     posture_.body_roll_gry = -ins_->raw.gyro[0];
-    posture_.body_theta    = -ins_->pitch / 180.f * PI_F32;
+    posture_.body_theta    = -ins_->pitch / 180.f * PI_F32 - correct_rad_;
     posture_.body_theta_gry    = -ins_->raw.gyro[1];
 
     float32_t raw_acc[3];

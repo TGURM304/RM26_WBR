@@ -15,6 +15,14 @@ typedef struct {
     float32_t left_L0, left_theta;
     float32_t right_L0, right_theta;
 }leg_state_pkg;
+typedef struct {
+    float32_t body_balance, body_move;
+    float32_t wheel_balance, wheel_move;
+}lqr_output;
+typedef enum {
+    E_left,
+    E_right
+}leg_switch;
 class LQR_controller {
     /*
      * 设计LQR控制器
@@ -28,15 +36,18 @@ public:
     }
     void static_clc(float32_t *delta_state);
     void dynamic_clc(float32_t *delta_state, Relay::relay_leg left_leg, Relay::relay_leg right_leg);
-    float32_t* get_out_tor() {
-        return out_tor;
+    lqr_output get_lqr_output(leg_switch leg) {
+        if(leg == E_left) {return left_output_;}
+        else { return right_output_;}
+
     }
 private:
-    float32_t static_K_[40]{};
-    float32_t dynamic_coe_[240]{};
+    float32_t static_K_[4][10] = {};
+    float32_t dynamic_coe_[240] = {};
     float32_t dynamic_K_[40] = {0.0f};
     float32_t state_delta_[10] = {0.0f};
-    float32_t out_tor[4] = {0.0f};
+    lqr_output left_output_ = {};
+    lqr_output right_output_ = {};
 };
 }
 

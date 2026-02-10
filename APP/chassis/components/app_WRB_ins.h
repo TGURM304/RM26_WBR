@@ -23,11 +23,15 @@ namespace INS{
     public:
         app_WRB_ins(const app_ins_data_t *ins):ins_(ins) {
         }
+        void set_correct(float correct_rad) {
+            correct_rad_ = correct_rad;
+        };
         void update();
         const body_posture *get_pos();
     private:
         const app_ins_data_t *ins_;
         body_posture posture_;
+        float correct_rad_ = 0;
     };
 }
 
