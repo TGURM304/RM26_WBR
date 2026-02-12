@@ -24,6 +24,14 @@ void LegController::app_leg_ctrl::right_deg_update(Relay::relay_leg right_leg, f
     output_.tor_right = right_omega_pid_.update(right_leg.dot_theta,target_omega);
 }
 
+void LegController::app_leg_ctrl::left_omega_only(Relay::relay_leg left_leg, float target_omega) {
+    output_.tor_left = left_omega_pid_.update(left_leg.dot_theta,target_omega);
+}
+
+void LegController::app_leg_ctrl::right_omega_only(Relay::relay_leg right_leg, float target_omega) {
+    output_.tor_right = right_omega_pid_.update(right_leg.dot_theta,target_omega);
+}
+
 void LegController::app_leg_ctrl::leg_clear() {
     left_speed_pid_.clear();
     right_speed_pid_.clear();

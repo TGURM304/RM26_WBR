@@ -29,6 +29,8 @@ namespace LegController {
         void right_len_update(Relay::relay_leg right_leg, float target_len);
         void left_deg_update(Relay::relay_leg left_leg, float target_deg);
         void right_deg_update(Relay::relay_leg right_leg, float target_deg);
+        void left_omega_only(Relay::relay_leg left_leg, float target_omega);
+        void right_omega_only(Relay::relay_leg right_leg, float target_omega);
         leg_output get_output() {return output_;}
         void leg_clear();
         void leg_len_clear();
