@@ -8,6 +8,7 @@ void Relay::message_adapter::update() {
     mapping_->update();
     //对腿的状态进行更新
     auto p = &LQR_raw_data_;
+    //里程计S的计算是增量式的，其余均为实时计算当前值，所以说S可以通过简单的置零来恢复初始状态
     p->S += mapping_->get_lqr_status().wheel_delta_S;
     p->dot_S = mapping_->get_lqr_status().wheel_ver;
     p->phi = mapping_->get_lqr_status().body_phi;

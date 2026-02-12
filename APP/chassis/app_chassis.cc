@@ -74,6 +74,8 @@ VMC::app_vmc vmc;
 LQR::LQR_controller lqr_controller((float32_t *)K,(float32_t *)coef);
 VMC::ctrl_pkg left_vmc_pkg, right_vmc_pkg;
 auto rc = bsp_rc_data();
+Pipeline::control_pipeline my_pipeline(&adapter, &vmc, &lqr_controller,&leg_controller);
+Pipeline::cmd_pkg pipeline_pkg = {};
 
 // 静态任务，在 CubeMX 中配置
 void app_chassis_task(void *args) {
@@ -84,108 +86,64 @@ void app_chassis_task(void *args) {
     Pipeline::final_output motor_tor;
     float32_t delta[10] = {0};
     float32_t target_s = 0;
+    my_pipeline.rest();
+
 	while(true) {
-	    adapter.update();
-	    auto left_leg = adapter.get_left_leg_status();
-	    auto right_leg = adapter.get_right_leg_status();
-	    auto lqr_data = adapter.get_LQR_raw();
-
-	    leg_controller.left_len_update(left_leg,0.22);
-	    leg_controller.right_len_update(right_leg,0.22);
-	    leg_controller.left_deg_update(left_leg,PI/2);
-	    leg_controller.right_deg_update(right_leg,PI/2);
-	    auto pid_out = leg_controller.get_output();
-
-        left_vmc_pkg.force_L = pid_out.force_left;
-	    left_vmc_pkg.leg_tor = pid_out.tor_left;
-
-
-	    right_vmc_pkg.force_L = pid_out.force_right;
-	    right_vmc_pkg.leg_tor = pid_out.tor_right;
-
-
-	    vmc.tor_clc(left_vmc_pkg,left_leg,VMC::E_Left);
-	    vmc.tor_clc(right_vmc_pkg,right_leg,VMC::E_Right);
-	    auto vmc_out = vmc.tor_get();
-
+        my_pipeline.observer_update();
 	    if(rc->s_r == 1) {
-	        target_s += (float32_t)rc->rc_l[1]*0.5/660/1000;
-
-	        delta[0] = target_s -lqr_data.S;
-	        delta[1] = -lqr_data.dot_S;
-	        delta[0] = LIMIT(1,delta[0]);
-
-	        delta[2] = -lqr_data.phi;
-	        delta[3] = -lqr_data.dot_phi;
-	        // delta[4] = -lqr_data.left_theta;
-	        // delta[5] = -lqr_data.left_dot_theta;
-	        // delta[6] = -lqr_data.right_theta;
-	        // delta[7] = -lqr_data.right_dot_theta;
-	        delta[8] = -lqr_data.body_theta;
-	        delta[9] = -lqr_data.body_dot_theta;
-	        // delta[8] = LIMIT(0.5,delta[8]);
-
-
-	        // delta[0] = 0;
-	        // delta[1] = 0;
-	        // delta[2] = 0;
-	        // delta[3] = 0;
-	        delta[4] = 0;
-	        delta[5] = 0;
-	        delta[6] = 0;
-	        delta[7] = 0;
-	        // delta[8] = 0;
-	        // delta[9] = 0;
-	        lqr_controller.static_clc(delta);
-	        auto left = lqr_controller.get_lqr_output(LQR::E_left);
-	        auto right = lqr_controller.get_lqr_output(LQR::E_right);
-
-	        joint1.set_tor(vmc_out.p_right_tor2+vmc_out.c_right_tor2);
-	        joint2.set_tor(vmc_out.p_right_tor1+vmc_out.c_right_tor1);
-	        joint3.set_tor(vmc_out.p_left_tor1+vmc_out.c_left_tor1);
-	        joint4.set_tor(vmc_out.p_left_tor2+vmc_out.c_left_tor2);
+	        pipeline_pkg.leg_deg_cmd = Pipeline::E_LEG_DEG_ENABLE;
+	        pipeline_pkg.leg_len_cmd = Pipeline::E_LEG_LEN_ENABLE;
 	        if(rc->s_l == 1) {
-	            left_vmc_pkg.force_y = 40*cos(lqr_data.body_theta);
-	            left_vmc_pkg.force_x = -40*sin(lqr_data.body_theta);
-	            right_vmc_pkg.force_y = 40*cos(lqr_data.body_theta);
-	            right_vmc_pkg.force_x = -40*sin(lqr_data.body_theta);
-	            left_dynamic.set_tor(left.wheel_move+left.wheel_balance);
-                right_dynamic.set_tor(right.wheel_move+right.wheel_balance);
-                // left_dynamic.set_tor(left.body_balance);
-                // right_dynamic.set_tor(right.body_balance);
-                // left_dynamic.set_tor(0);
-                // right_dynamic.set_tor(0);
-                // left_dynamic.set_tor(left.body_move);
-	            // right_dynamic.set_tor(right.body_move);
-	            // left_dynamic.set_tor((float)(rc->rc_l[1]*3.0f)/640.f);
-	            // right_dynamic.set_tor((float)(rc->rc_l[1]*3.0f)/640.f);
-
-                bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f,%f,%f\r\n",
-	            left.wheel_move,right.wheel_move,
-	            left.wheel_balance,left.wheel_move+left.wheel_balance,
-	            delta[0],delta[8]);
+	            pipeline_pkg.leg_forward_cmd = Pipeline::E_LEG_FORWARD_ENABLE;
+	            pipeline_pkg.lqr_cmd = Pipeline::E_LQR_CHAIR;
 	        }
 	        else {
-	            target_s = 0;
-	            left_vmc_pkg.force_y = 0;
-	            left_vmc_pkg.force_x = 0;
-	            right_vmc_pkg.force_y = 0;
-	            right_vmc_pkg.force_x = 0;
+	            pipeline_pkg.leg_forward_cmd = Pipeline::E_LEG_FORWARD_DISABLE;
+                pipeline_pkg.lqr_cmd = Pipeline::E_CHASSIS_SAFE;
+	        }
+	    }
+	    else {
+	        my_pipeline.data_clear();
+	        pipeline_pkg.leg_deg_cmd = Pipeline::E_LEG_DEG_DISABLE;
+	        pipeline_pkg.leg_len_cmd = Pipeline::E_LEG_LEN_DISABLE;
+	        pipeline_pkg.leg_forward_cmd = Pipeline::E_LEG_FORWARD_DISABLE;
+	    }
+	    my_pipeline.set_state(pipeline_pkg);
+        my_pipeline.leg_len_control(0.21,0.21);
+	    my_pipeline.leg_deg_control(PI/2,PI/2);
+        my_pipeline.vmc_pkg_update();
+	    my_pipeline.vmc_clc();
+	    my_pipeline.motor_tor_update();
+	    my_pipeline.lqr_control(rc->rc_l[1]*0.5f/660,(float)rc->reserved/660.0f);
+	    my_pipeline.lqr_get();
+	    if(rc->s_r == 1) {
+	        joint1.set_tor(my_pipeline.output_.tor1);
+	        joint2.set_tor(my_pipeline.output_.tor2);
+	        joint3.set_tor(my_pipeline.output_.tor3);
+	        joint4.set_tor(my_pipeline.output_.tor4);
+	        if(rc->s_l == 1) {
+	            left_dynamic.set_tor(my_pipeline.output_.dynamic_left);
+	            right_dynamic.set_tor(my_pipeline.output_.dynamic_right);
+	        }
+	        else {
 	            left_dynamic.set_tor(0);
 	            right_dynamic.set_tor(0);
 	        }
 	    }
-        else {
-            target_s = 0;
-            joint1.set_tor(0);
-            joint2.set_tor(0);
-            joint3.set_tor(0);
-            joint4.set_tor(0);
-            right_dynamic.set_tor(0);
-            left_dynamic.set_tor(0);
-            leg_controller.leg_clear();
-            adapter.clear();
-        }
+	    else {
+	        joint1.set_tor(0);
+	        joint2.set_tor(0);
+	        joint3.set_tor(0);
+	        joint4.set_tor(0);
+	        left_dynamic.set_tor(0);
+	        right_dynamic.set_tor(0);
+	    }
+	    bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f,%f\r\n",
+	        my_pipeline.left_leg_.theta,
+	        my_pipeline.lqr_left.wheel_balance,
+	        my_pipeline.lqr_left.wheel_move,
+	        my_pipeline.lqr_right.wheel_balance,
+            (float)rc->reserved);
 
 	    OS::Task::SleepMilliseconds(1);
 	}
