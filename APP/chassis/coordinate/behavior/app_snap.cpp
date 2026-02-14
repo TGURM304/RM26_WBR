@@ -52,3 +52,7 @@ void Coordinate::snap::snap_set_zero() {
     zero_snap_.lqr_data.phi = current_snap_.lqr_data.phi;
 }
 
+void Coordinate::snap::snap_clear_S() {
+    current_snap_.lqr_data.S = 0;
+    zero_snap_.lqr_data.S = 0;
+}

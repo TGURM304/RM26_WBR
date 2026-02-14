@@ -42,6 +42,7 @@ typedef struct {
         robot_snap* last_snap_get();
         void snap_clear();
         void snap_set_zero();
+        void snap_clear_S();
     private:
         observer_struct observer_ = {};
 
