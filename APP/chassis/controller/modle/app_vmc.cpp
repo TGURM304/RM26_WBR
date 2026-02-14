@@ -20,22 +20,30 @@
 #define L_b 0.1125f
 
 using namespace VMC;
-void app_vmc::VMC_clc(float theta1, float theta2) {
+void app_vmc::VMC_clc(float theta1, float theta2, E_LEG_SWITCH select) {
     //此处直接计算了转置后的矩阵
-    jacobin[0] = -L1*sin(theta1)-L2*sin(theta1+theta2);
-    jacobin[2] = -L2*sin(theta1+theta2);
-    jacobin[1] = L1*cos(theta1)+L2*cos(theta1+theta2);
-    jacobin[3] = L2*cos(theta1+theta2);
+    auto p =left_jacobin;
+    if(select == E_Right)
+        p = right_jacobin;
+    p[0] = -L1*sin(theta1)-L2*sin(theta1+theta2);
+    p[2] = -L2*sin(theta1+theta2);
+    p[1] = L1*cos(theta1)+L2*cos(theta1+theta2);
+    p[3] = L2*cos(theta1+theta2);
 }
 
 void app_vmc::tor_clc(ctrl_pkg pkg, Relay::relay_leg status,E_LEG_SWITCH select) {
     float *p_tor1 = &tor_.p_left_tor1, *c_tor1 = &tor_.c_left_tor1;
     float *p_tor2 = &tor_.p_left_tor2, *c_tor2 = &tor_.c_left_tor2;
+    float *c_force = left_c_force, *p_force = left_p_force;
+    float *jacobin = left_jacobin;
+
     if(select == E_Right) {
         p_tor1 = &tor_.p_right_tor1, c_tor1 = &tor_.c_right_tor1;
         p_tor2 = &tor_.p_right_tor2, c_tor2 = &tor_.c_right_tor2;
+        c_force = right_c_force, p_force = right_p_force;
+        jacobin = right_jacobin;
     }
-    VMC_clc(status.theta_1,status.theta_2);
+    VMC_clc(status.theta_1,status.theta_2,select);
     //此处直接计算了转置后的矩阵
     Matrixf<2,2> Jacobin_matrix(jacobin);
     auto force_tor = pkg.leg_tor/status.L0;

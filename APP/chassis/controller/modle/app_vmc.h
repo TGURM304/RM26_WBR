@@ -24,13 +24,16 @@ typedef struct {
     class app_vmc {
     public:
         app_vmc() = default;
-        void tor_clc(ctrl_pkg pkg, Relay::relay_leg status,E_LEG_SWITCH select);
+        void tor_clc(ctrl_pkg pkg, Relay::relay_leg status, E_LEG_SWITCH select);
         motor_tor tor_get() {return tor_;}
     private:
-        void VMC_clc(float theta1, float theta2);
-        float jacobin[4] = {};
-        float p_force[2] = {};
-        float c_force[2] = {};
+        void VMC_clc(float theta1, float theta2, E_LEG_SWITCH select);
+        float left_jacobin[4] = {};
+        float left_p_force[2] = {};
+        float left_c_force[2] = {};
+        float right_jacobin[4] = {};
+        float right_p_force[2] = {};
+        float right_c_force[2] = {};
         motor_tor tor_ = {0};
     };
 }
