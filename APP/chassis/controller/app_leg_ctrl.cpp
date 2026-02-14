@@ -50,9 +50,13 @@ void LegController::app_leg_ctrl::leg_deg_clear() {
     right_deg_pid_.clear();
 }
 
-void LegController::app_leg_ctrl::leg_len_clear() {
+void LegController::app_leg_ctrl::left_leg_len_clear() {
     left_speed_pid_.clear();
     left_length_pid_.clear();
-    right_speed_pid_.clear();
+}
+
+void LegController::app_leg_ctrl::right_leg_len_clear() {
+     right_speed_pid_.clear();
     right_length_pid_.clear();
 }
+

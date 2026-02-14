@@ -33,7 +33,8 @@ namespace LegController {
         void right_omega_only(Relay::relay_leg right_leg, float target_omega);
         leg_output get_output() {return output_;}
         void leg_clear();
-        void leg_len_clear();
+        void left_leg_len_clear();
+        void right_leg_len_clear();
         void leg_deg_clear();
     private:
         PID left_speed_pid_;
