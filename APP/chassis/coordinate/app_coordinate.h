@@ -8,6 +8,7 @@
 #include "app_leg_ctrl.h"
 #include "app_snap.h"
 #include "app_vmc.h"
+#include "bsp_rc.h"
 
 #include <vector>
 
@@ -78,6 +79,7 @@ typedef struct {
         :robot_snap_ptr_(robot_snap), controller_(controller), motor_component_(motor_component) {
         };
         void tick();
+        void test_function(const bsp_rc_data_t *rc);
         void reset();
         void inner_cmd_update();
     private:
