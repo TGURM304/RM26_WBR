@@ -4,6 +4,8 @@
 
 #include "app_motor_pkg.h"
 
+#include <fast_math_functions.h>
+
 void Motor_Pkg::Joint::set_tor(float tor) {
     float temp = tor;
     if(tor > 40) temp = 40;
@@ -16,6 +18,10 @@ Motor_Pkg::motor_status_pkg Motor_Pkg::Joint::get_status() {
     status_pkg_.old_pos = status_pkg_.pos;
     status_pkg_.old_speed = status_pkg_.speed;
     status_pkg_.pos = status.pos*dir_+zero_;
+    if(status_pkg_.pos > PI)
+        status_pkg_.pos -= 2*PI;
+    else if(status_pkg_.pos < -PI)
+        status_pkg_.pos += 2*PI;
     status_pkg_.speed = status.vel*dir_;
     status_pkg_.err = status.err;
     return status_pkg_;

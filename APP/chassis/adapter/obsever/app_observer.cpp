@@ -45,8 +45,14 @@ void StateMapping::leg_clc(float theta_big, float theta_small,leg_switch leg){
     float theta1, theta2;
     //theta1和theta2是腿上的角度的内容
     theta1 = theta_big;
+    if(theta1 < 0) theta1+= 2*PI;
     float kate_alpha, kate_gama;
-    kate_alpha = theta_big - theta_small;
+
+    if(theta_big < theta_small)
+        kate_alpha =  theta_big - theta_small +PI*2;
+    else
+        kate_alpha = theta_big - theta_small;
+
     float kate_c2 = 2*KATE_A*KATE_A*(1-cosf(kate_alpha));
     kate_gama = acosf((2*KATE_B*KATE_B-kate_c2)/(2*KATE_B*KATE_B));
     theta2 = -(kate_alpha+kate_gama)/2;
