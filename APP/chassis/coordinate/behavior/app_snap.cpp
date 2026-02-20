@@ -53,6 +53,7 @@ void Coordinate::snap::snap_set_zero() {
 }
 
 void Coordinate::snap::snap_clear_S() {
+    observer_.my_adapter_->clear_S();
     current_snap_.lqr_data.S = 0;
     zero_snap_.lqr_data.S = 0;
 }

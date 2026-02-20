@@ -65,3 +65,9 @@ void Relay::message_adapter::clear() {
     left_leg_status_ = {};
     right_leg_status_ = {};
 }
+
+void Relay::message_adapter::clear_S() {
+    mapping_->clear_s();
+    LQR_raw_data_.S = 0;
+    LQR_raw_data_.dot_S = 0;
+}

@@ -37,6 +37,7 @@ namespace Relay {
         }
         void update();
         void clear();
+        void clear_S();
         relay_lqr get_LQR_raw();
         relay_leg get_left_leg_status();
         relay_leg get_right_leg_status();

@@ -70,7 +70,7 @@ typedef struct {
 } component;//电机组件指针
 typedef struct {
     mode_switch_cmd extern_cmd_, inner_cmd_;
-    mode_state current_state_;
+    mode_state current_state_,last_state;
 } mode_state_struct;
     class app_coordinate {
     public:
@@ -147,8 +147,8 @@ typedef struct {
         mode_state_struct mode_state_ = {
             .extern_cmd_ = CMD_EXECUTING,
             .inner_cmd_ = CMD_EXECUTING,
-            .current_state_ = E_WAITING}
-        ;
+            .current_state_ = E_WAITING,
+            .last_state = E_WAITING};
     };
 }
 
