@@ -5,7 +5,7 @@
 #include "app_chassis.h"
 
 #include "app_LQR.h"
-#include "app_control_pipeline.h"
+#include "app_coordinate.h"
 #include "app_msg.h"
 #include "bsp_rc.h"
 
@@ -60,97 +60,64 @@ Motor_Pkg::Dynamic left_dynamic("left_dynamic",Motor::DJIMotor::M3508,{
 
 
 const app_ins_data_t *ins = app_ins_data();
+auto rc = bsp_rc_data();
+
 INS::app_WRB_ins my_ins(ins);
 
 Relay::StateMapping mapping(&joint1,&joint2,&joint3,&joint4,
     &right_dynamic,&left_dynamic,&my_ins);
 Relay::message_adapter adapter(&mapping);
 LegController::app_leg_ctrl leg_controller(
-{70,3.0/1000,2,15,10},
+{70,2.0/1000,2,15,0},
 {80,0,0,3,5},
-{3,0,2,10,10},
+{3,5.0/1000.0f,0,20,15},
 {10,0,0,3,3});
 VMC::app_vmc vmc;
-LQR::LQR_controller lqr_controller((float32_t *)K,(float32_t *)coef);
-VMC::ctrl_pkg left_vmc_pkg, right_vmc_pkg;
-auto rc = bsp_rc_data();
-Pipeline::control_pipeline my_pipeline(&adapter, &vmc, &lqr_controller,&leg_controller);
-Pipeline::cmd_pkg pipeline_pkg = {};
+LQR::LQR_controller lqr_controller((float32_t *)K,(float32_t *)K_Fit_Coefficients);
+Coordinate::observer_struct my_observer = {
+.my_adapter_ = &adapter,
+.J1 = &joint1,
+.J2 = &joint2,
+.J3 = &joint3,
+.J4 = &joint4,
+.right = &right_dynamic,
+.left = &left_dynamic,
+.ins = &my_ins
+};
 
+Coordinate::snap my_snap(my_observer);
+Coordinate::robot_controller_struct my_controller_struct = {
+.vmc = &vmc,
+.left_vmc_pkg = {},
+.right_vmc_pkg = {},
+.leg_ctrl = &leg_controller,
+.lqr_controller = &lqr_controller};
+Coordinate::component my_component = {
+.j1 = &joint1,
+.j2 = &joint2,
+.j3 = &joint3,
+.j4 = &joint4,
+.right = &right_dynamic,
+.left = &left_dynamic};
+Coordinate::app_coordinate my_coordinate(&my_snap,my_controller_struct,my_component);
 // 静态任务，在 CubeMX 中配置
 void app_chassis_task(void *args) {
 	// Wait for system init.
 	while(!app_sys_ready()) OS::Task::SleepMilliseconds(10);
     OS::Task::SleepSeconds(2);
     app_chassis_init();
-    Pipeline::final_output motor_tor;
-    float32_t delta[10] = {0};
-    float32_t target_s = 0;
-    my_pipeline.rest();
 
 	while(true) {
-        my_pipeline.observer_update();
-	    if(rc->s_r == 1) {
-	        pipeline_pkg.leg_deg_cmd = Pipeline::E_LEG_DEG_ENABLE;
-	        pipeline_pkg.leg_len_cmd = Pipeline::E_LEG_LEN_ENABLE;
-	        if(rc->s_l == 1) {
-	            pipeline_pkg.leg_forward_cmd = Pipeline::E_LEG_FORWARD_ENABLE;
-	            pipeline_pkg.lqr_cmd = Pipeline::E_LQR_CHAIR;
-	        }
-	        else {
-	            pipeline_pkg.leg_forward_cmd = Pipeline::E_LEG_FORWARD_DISABLE;
-                pipeline_pkg.lqr_cmd = Pipeline::E_CHASSIS_SAFE;
-	        }
-	    }
-	    else {
-	        my_pipeline.data_clear();
-	        pipeline_pkg.leg_deg_cmd = Pipeline::E_LEG_DEG_DISABLE;
-	        pipeline_pkg.leg_len_cmd = Pipeline::E_LEG_LEN_DISABLE;
-	        pipeline_pkg.leg_forward_cmd = Pipeline::E_LEG_FORWARD_DISABLE;
-	    }
-	    my_pipeline.set_state(pipeline_pkg);
-        my_pipeline.leg_len_control(0.21,0.21);
-	    my_pipeline.leg_deg_control(PI/2,PI/2);
-        my_pipeline.vmc_pkg_update();
-	    my_pipeline.vmc_clc();
-	    my_pipeline.motor_tor_update();
-	    my_pipeline.lqr_control(rc->rc_l[1]*0.5f/660,(float)rc->reserved/660.0f);
-	    my_pipeline.lqr_get();
-	    if(rc->s_r == 1) {
-	        joint1.set_tor(my_pipeline.output_.tor1);
-	        joint2.set_tor(my_pipeline.output_.tor2);
-	        joint3.set_tor(my_pipeline.output_.tor3);
-	        joint4.set_tor(my_pipeline.output_.tor4);
-	        if(rc->s_l == 1) {
-	            left_dynamic.set_tor(my_pipeline.output_.dynamic_left);
-	            right_dynamic.set_tor(my_pipeline.output_.dynamic_right);
-	        }
-	        else {
-	            left_dynamic.set_tor(0);
-	            right_dynamic.set_tor(0);
-	        }
-	    }
-	    else {
-	        joint1.set_tor(0);
-	        joint2.set_tor(0);
-	        joint3.set_tor(0);
-	        joint4.set_tor(0);
-	        left_dynamic.set_tor(0);
-	        right_dynamic.set_tor(0);
-	    }
-	    bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f,%f\r\n",
-	        my_pipeline.left_leg_.theta,
-	        my_pipeline.lqr_left.wheel_balance,
-	        my_pipeline.lqr_left.wheel_move,
-	        my_pipeline.lqr_right.wheel_balance,
-            (float)rc->reserved);
+
+        my_coordinate.test_function(rc);
 
 	    OS::Task::SleepMilliseconds(1);
 	}
 }
 
 void app_chassis_init() {
-    my_ins.set_correct(-5.0*3.14/180);
+    // my_ins.set_correct(-5.0*3.14/180);
+    my_ins.set_correct(0);
     right_dynamic.pkg_init();
     left_dynamic.pkg_init();
     joint1.pkg_init(), joint2.pkg_init(), joint3.pkg_init(), joint4.pkg_init();

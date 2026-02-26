@@ -18,6 +18,7 @@ typedef enum {
     E_ANY,
     E_WAITING,
     E_PUT_BODY,
+    E_PUT_LEG,
     E_DOG,
     E_CHAIR,
     E_LQR,
@@ -43,6 +44,7 @@ typedef enum {
     CMD_REBOOT,
     CMD_EMERGENCY,
     CMD_WAITING,
+    CMD_LEG_START,
     CMD_CNT
 }mode_switch_cmd;//转换条件或者说命令
 typedef struct {
@@ -87,6 +89,7 @@ typedef struct {
         void exe_any                (snap *robot_snap,mode_state_struct state);
         void exe_waiting            (snap *robot_snap,mode_state_struct state);
         void exe_put_body           (snap *robot_snap,mode_state_struct state);
+        void exe_put_leg           (snap *robot_snap,mode_state_struct state);
         void exe_dog                (snap *robot_snap,mode_state_struct state);
         void exe_chair              (snap *robot_snap,mode_state_struct state);
         void exe_lqr                (snap *robot_snap,mode_state_struct state);
@@ -103,13 +106,15 @@ typedef struct {
 
         using BehaviorFunc = void (app_coordinate::*)(snap*,mode_state_struct);
         snap *robot_snap_ptr_ = nullptr;
-        static const int16_t size_map = 14;
+        static const int16_t size_map = 14+1;
         move_define move_map[size_map] = {
             /* 等待状态 */
             {E_WAITING,            CMD_START,          E_PUT_BODY},
             /* 机体归正 */
-            {E_PUT_BODY,           CMD_CHAIR_START,    E_CHAIR},
-            {E_PUT_BODY,           CMD_DOG_START,      E_DOG},
+            {E_PUT_BODY,           CMD_LEG_START,    E_PUT_LEG},
+            /* 腿部归正 */
+            {E_PUT_LEG,           CMD_DOG_START,    E_DOG},
+            {E_PUT_LEG,           CMD_CHAIR_START,    E_CHAIR},
             /* 土狗模式 */
             {E_DOG,                CMD_DOG_END,        E_PUT_BODY},
             /* 小板凳起立 */
@@ -127,12 +132,13 @@ typedef struct {
             {E_GET_GROUND_SMOOTH,  CMD_SMOOTH_FINISH,  E_LQR},
             /* 倒地保护 */
             {E_FALL_PROTECT,       CMD_REBOOT,         E_WAITING},
-            {E_ANY,                CMD_EMERGENCY,               E_FALL_PROTECT}
+            {E_ANY,                CMD_EMERGENCY,      E_FALL_PROTECT}
         };
         static constexpr BehaviorFunc behavior_table_[E_MODE_CNT] = {
             &app_coordinate::exe_any,
             &app_coordinate::exe_waiting,
             &app_coordinate::exe_put_body,
+            &app_coordinate::exe_put_leg,
             &app_coordinate::exe_dog,
             &app_coordinate::exe_chair,
             &app_coordinate::exe_lqr,

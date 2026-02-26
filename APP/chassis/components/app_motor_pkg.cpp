@@ -43,12 +43,13 @@ void Motor_Pkg::Dynamic::pkg_init() {
 #define REDUCTION_NOW (268.0f/17.0f)
 #define TORQUE_CONST (0.3f)
 #define PI_F32 (3.1415926f)
+#define M3508_LIMIT (20.0f)
 void Motor_Pkg::Dynamic::set_tor(float tor) {
     float temp_tor = tor*dir_;
     // float current = temp_tor/(REDUCTION_NOW/REDUCTION_ORG*TORQUE_CONST);
     float current = (temp_tor/REDUCTION_NOW)*(REDUCTION_ORG)/TORQUE_CONST;
-    if(current > 20.0f) current = 20.0f;
-    if(current < -20.0f) current = -20.0f;
+    if(current > M3508_LIMIT) current = M3508_LIMIT;
+    if(current < -M3508_LIMIT) current = -M3508_LIMIT;
     update(current/20.f*16384.f);
 }
 

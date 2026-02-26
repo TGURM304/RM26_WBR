@@ -28,18 +28,14 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
         exe_put_body(robot_snap_ptr_,mode_state_);
     }
     else if(rc->s_l == 1 && rc->s_r == 1) {
-        mode_state_.current_state_ = E_CHAIR;
-        exe_chair(robot_snap_ptr_,mode_state_);
+        mode_state_.current_state_ = E_PUT_LEG;
+        exe_put_leg(robot_snap_ptr_,mode_state_);
     }
     else {
         mode_state_.current_state_ = E_WAITING;
         motor_rest();
     }
 
-   auto p = robot_snap_ptr_->current_snap_get();
-    bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f\r\n",
-        p->lqr_data.S,p->lqr_data.dot_S,
-        p->lqr_data.phi,p->lqr_data.dot_phi);
     motor_tor_update();
 }
 
@@ -68,6 +64,81 @@ void app_coordinate::exe_waiting(snap *robot_snap, mode_state_struct state) {
 }
 
 void app_coordinate::exe_put_body(snap *robot_snap, mode_state_struct state){
+    auto p = robot_snap->current_snap_get();
+    auto ctrl = &controller_;
+
+    if(p->robot_raw_data.body_theta >PI/3) {
+        controller_.leg_ctrl->left_omega_only(p->left_leg,1);
+        controller_.leg_ctrl->right_omega_only(p->right_leg,1);
+
+        controller_.leg_ctrl->left_len_update(p->left_leg,0.35);
+        controller_.leg_ctrl->right_len_update(p->right_leg,0.35);
+
+        ctrl->left_vmc_pkg.force_x = 0;
+        ctrl->left_vmc_pkg.force_y = 0;
+        ctrl->left_vmc_pkg.leg_tor = ctrl->leg_ctrl->get_output().tor_left;
+        ctrl->left_vmc_pkg.force_L = ctrl->leg_ctrl->get_output().force_left;
+
+        ctrl->right_vmc_pkg.force_x = 0;
+        ctrl->right_vmc_pkg.force_y = 0;
+        ctrl->right_vmc_pkg.leg_tor = ctrl->leg_ctrl->get_output().tor_right;
+        ctrl->right_vmc_pkg.force_L = ctrl->leg_ctrl->get_output().force_right;
+    }
+    else if(p->robot_raw_data.body_theta < -PI/3) {
+        controller_.leg_ctrl->left_omega_only(p->left_leg,-1);
+        controller_.leg_ctrl->right_omega_only(p->right_leg,-1);
+
+        controller_.leg_ctrl->left_len_update(p->left_leg,0.35);
+        controller_.leg_ctrl->right_len_update(p->right_leg,0.35);
+        ctrl->left_vmc_pkg.force_x = 0;
+        ctrl->left_vmc_pkg.force_y = 0;
+        ctrl->left_vmc_pkg.leg_tor = ctrl->leg_ctrl->get_output().tor_left;
+        ctrl->left_vmc_pkg.force_L = ctrl->leg_ctrl->get_output().force_left;
+
+        ctrl->right_vmc_pkg.force_x = 0;
+        ctrl->right_vmc_pkg.force_y = 0;
+        ctrl->right_vmc_pkg.leg_tor = ctrl->leg_ctrl->get_output().tor_right;
+        ctrl->right_vmc_pkg.force_L = ctrl->leg_ctrl->get_output().force_right;
+    }
+    else {
+        controller_.leg_ctrl->leg_clear();
+
+        ctrl->left_vmc_pkg.force_x = 0;
+        ctrl->left_vmc_pkg.force_y = 0;
+        ctrl->left_vmc_pkg.leg_tor = 0;
+        ctrl->left_vmc_pkg.force_L = 0;
+
+        ctrl->right_vmc_pkg.force_x = 0;
+        ctrl->right_vmc_pkg.force_y = 0;
+        ctrl->right_vmc_pkg.leg_tor = 0;
+        ctrl->right_vmc_pkg.force_L = 0;
+    }
+    //计算PKG中目标对应的电机扭矩
+    ctrl->left_vmc_pkg.force_x = 0;
+    ctrl->left_vmc_pkg.force_y = 0;
+    ctrl->left_vmc_pkg.leg_tor = 0;
+    ctrl->left_vmc_pkg.force_L = 0;
+
+    ctrl->right_vmc_pkg.force_x = 0;
+    ctrl->right_vmc_pkg.force_y = 0;
+    ctrl->right_vmc_pkg.leg_tor = 0;
+    ctrl->right_vmc_pkg.force_L = 0;
+    ctrl->vmc->tor_clc(ctrl->left_vmc_pkg,p->left_leg,VMC::E_Left);
+    ctrl->vmc->tor_clc(ctrl->right_vmc_pkg,p->right_leg,VMC::E_Right);
+
+    bsp_uart_printf(E_UART_DEBUG,"%f\r\n",p->robot_raw_data.body_theta);
+
+    //更新到目标输出中
+    auto answer = ctrl->vmc->tor_get();
+    motor_output_.tor_j1 = answer.p_right_tor2;
+    motor_output_.tor_j2 = answer.p_right_tor1;
+    motor_output_.tor_j3 = answer.p_left_tor1;
+    motor_output_.tor_j4 = answer.p_left_tor2;
+    motor_output_.dynamic_left  = 0;
+    motor_output_.dynamic_right = 0;
+}
+
+void app_coordinate::exe_put_leg(snap *robot_snap, mode_state_struct state){
 
     auto p = robot_snap->current_snap_get();
     auto ctrl = &controller_;
@@ -150,13 +221,9 @@ void app_coordinate::exe_chair(snap *robot_snap, mode_state_struct state){
     // delta[9] = 0;
 
     controller_.lqr_controller->static_clc(delta);
+    controller_.lqr_controller->dynamic_clc(delta,p->left_leg,p->right_leg);
 
     auto ctrl = &controller_;
-
-    // ctrl->left_vmc_pkg.force_y = 40*cos(p->lqr_data.body_theta);
-    // ctrl->left_vmc_pkg.force_x = -40*sin(p->lqr_data.body_theta);
-    // ctrl->right_vmc_pkg.force_y = 40*cos(p->lqr_data.body_theta);
-    // ctrl->right_vmc_pkg.force_x = -40*sin(p->lqr_data.body_theta);
 
     ctrl->left_vmc_pkg.force_y = 0;
     ctrl->left_vmc_pkg.force_x = 0;
@@ -179,8 +246,6 @@ void app_coordinate::exe_chair(snap *robot_snap, mode_state_struct state){
     motor_output_.tor_j4 = answer.p_left_tor2;
     auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
     auto right = controller_.lqr_controller->get_lqr_output(LQR::E_right);
-    // motor_output_.dynamic_left = 0;
-    // motor_output_.dynamic_right = 0;
     motor_output_.dynamic_left = left.wheel_balance+left.wheel_move;
     motor_output_.dynamic_right = right.wheel_balance + right.wheel_move;
 }
