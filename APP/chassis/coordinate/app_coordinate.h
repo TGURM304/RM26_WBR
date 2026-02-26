@@ -74,6 +74,11 @@ typedef struct {
     mode_switch_cmd extern_cmd_, inner_cmd_;
     mode_state current_state_,last_state;
 } mode_state_struct;
+
+typedef struct {
+    float32_t body_height, speed, phi;
+    bool spin_flag;
+}ctrl_struct;
     class app_coordinate {
     public:
         app_coordinate();
@@ -86,25 +91,26 @@ typedef struct {
         void inner_cmd_update();
     private:
 
-        void exe_any                (snap *robot_snap,mode_state_struct state);
-        void exe_waiting            (snap *robot_snap,mode_state_struct state);
-        void exe_put_body           (snap *robot_snap,mode_state_struct state);
-        void exe_put_leg           (snap *robot_snap,mode_state_struct state);
-        void exe_dog                (snap *robot_snap,mode_state_struct state);
-        void exe_chair              (snap *robot_snap,mode_state_struct state);
-        void exe_lqr                (snap *robot_snap,mode_state_struct state);
-        void exe_upstairs           (snap *robot_snap,mode_state_struct state);
-        void exe_fall_protect       (snap *robot_snap,mode_state_struct state);
-        void exe_off_ground         (snap *robot_snap,mode_state_struct state);
-        void exe_get_ground_smooth  (snap *robot_snap,mode_state_struct state);
+        void exe_any                (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
+        void exe_waiting            (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
+        void exe_put_body           (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
+        void exe_put_leg            (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
+        void exe_dog                (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
+        void exe_chair              (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
+        void exe_lqr                (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
+        void exe_upstairs           (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
+        void exe_fall_protect       (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
+        void exe_off_ground         (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
+        void exe_get_ground_smooth  (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
 
         void motor_tor_update();
         void motor_rest();
+        std::pair<float32_t,float32_t> roll_feed(float32_t roll_rad, float32_t left_r, float32_t right_r, float32_t target_height);
 
         mode_state_struct mode_reset();
         mode_state_struct mode_ptr_search();
 
-        using BehaviorFunc = void (app_coordinate::*)(snap*,mode_state_struct);
+        using BehaviorFunc = void (app_coordinate::*)(snap*,mode_state_struct,ctrl_struct);
         snap *robot_snap_ptr_ = nullptr;
         static const int16_t size_map = 14+1;
         move_define move_map[size_map] = {
