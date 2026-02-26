@@ -18,6 +18,9 @@ namespace INS{
         float body_theta, body_phi, body_roll;
         float body_theta_gry,body_phi_gry,body_roll_gry;
         float body_x_acc,body_y_acc,body_z_acc;
+        //机体在出现倾倒的时候会出现万向节死锁的问题
+        //导致部分角度出现问题，此时我们引入姿态的目标向量来得到倾倒时的姿态
+        float vector_x, vector_y, vector_z;
     }body_posture;
     class app_WRB_ins {
     public:
