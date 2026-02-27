@@ -70,7 +70,7 @@ Relay::message_adapter adapter(&mapping);
 LegController::app_leg_ctrl leg_controller(
 {70,2.0/1000,2,15,0},
 {80,0,0,3,5},
-{3,5.0/1000.0f,0,20,15},
+{3,2.0/1000.0f,0,12,8},
 {10,0,0,3,3});
 VMC::app_vmc vmc;
 LQR::LQR_controller lqr_controller((float32_t *)K,(float32_t *)K_Fit_Coefficients);
@@ -110,6 +110,12 @@ void app_chassis_task(void *args) {
 	while(true) {
 
         my_coordinate.test_function(rc);
+
+     //    my_ins.update();
+	    // auto p =my_ins.get_pos();
+	    // bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f,%f,%f\r\n",
+	    //     p->vector_x,p->vector_y,p->vector_z,
+	    //     p->body_roll,p->body_theta,p->body_phi);
 
 	    OS::Task::SleepMilliseconds(1);
 	}

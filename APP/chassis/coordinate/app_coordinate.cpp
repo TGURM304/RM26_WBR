@@ -234,25 +234,14 @@ void app_coordinate::exe_chair(snap *robot_snap, mode_state_struct state,ctrl_st
     float32_t delta[10];
     delta[0] = -p->lqr_data.S;
     delta[1] = -p->lqr_data.dot_S;
-    // delta[2] = -p->lqr_data.phi;
-    // delta[3] = -p->lqr_data.dot_phi;
+    delta[2] = 0;
+    delta[3] = 0;
     delta[4] = 0;
     delta[5] = 0;
     delta[6] = 0;
     delta[7] = 0;
     delta[8] = -p->lqr_data.body_theta;
     delta[9] = -p->lqr_data.body_dot_theta;
-
-    // delta[0] = 0;
-    // delta[1] = 0;
-    delta[2] = 0;
-    delta[3] = 0;
-    // delta[4] = 0;
-    // delta[5] = 0;
-    // delta[6] = 0;
-    // delta[7] = 0;
-    // delta[8] = 0;
-    // delta[9] = 0;
 
     controller_.lqr_controller->static_clc(delta);
     controller_.lqr_controller->dynamic_clc(delta,p->left_leg,p->right_leg);
@@ -286,9 +275,7 @@ void app_coordinate::exe_chair(snap *robot_snap, mode_state_struct state,ctrl_st
 
 void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl){
     auto snap = robot_snap->current_snap_get();
-
     //腿部控制代码块
-
 }
 
 mode_state_struct app_coordinate::mode_reset(){
