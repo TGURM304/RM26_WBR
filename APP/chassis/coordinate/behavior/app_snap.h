@@ -23,6 +23,7 @@ typedef struct {
     float speed_right, speed_left;
     float dis_right, dis_left;
     float body_theta, body_phi, body_roll;
+    float vector_x, vector_y, vector_z;
 }raw_data;
 typedef struct {
     uint8_t state_flag;

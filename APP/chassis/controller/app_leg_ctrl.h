@@ -13,6 +13,11 @@ namespace LegController {
         float32_t tor_left, tor_right;
         float32_t force_left, force_right;
     }leg_output;
+    typedef enum {
+        E_SOFT,
+        E_HARD,
+        E_CNT
+    }PID_STATE;
     class app_leg_ctrl {
     public:
         app_leg_ctrl() = default;
@@ -30,12 +35,15 @@ namespace LegController {
         void left_deg_update(Relay::relay_leg left_leg, float target_deg);
         void right_deg_update(Relay::relay_leg right_leg, float target_deg);
         void left_omega_only(Relay::relay_leg left_leg, float target_omega);
+        void left_omega_write_param(const double Kp, const double Ki, const double Kd, const double out_limit, const double iout_limit);
+        void right_omega_write_param(const double Kp, const double Ki, const double Kd, const double out_limit, const double iout_limit);
         void right_omega_only(Relay::relay_leg right_leg, float target_omega);
         leg_output get_output() {return output_;}
         void leg_clear();
         void left_leg_len_clear();
         void right_leg_len_clear();
         void leg_deg_clear();
+        PID_STATE left_flag = E_HARD, right_flag = E_HARD;
     private:
         PID left_speed_pid_;
         PID right_speed_pid_;

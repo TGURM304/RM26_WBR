@@ -24,11 +24,11 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
     robot_snap_ptr_->snap_update();
     mode_state_.last_state = mode_state_.current_state_;
     ctrl_struct test = {};
-    if(rc->s_l == 1 && rc->s_r == 0) {
+    if(rc->s_l == 0 && rc->s_r == -1) {
         mode_state_.current_state_ = E_PUT_BODY;
         exe_put_body(robot_snap_ptr_,mode_state_,test);
     }
-    else if(rc->s_l == 1 && rc->s_r == 1) {
+    else if(rc->s_l == 1 && rc->s_r == -1) {
         mode_state_.current_state_ = E_PUT_LEG;
         exe_put_leg(robot_snap_ptr_,mode_state_,test);
     }
@@ -64,7 +64,7 @@ void app_coordinate::exe_waiting(snap *robot_snap, mode_state_struct state,ctrl_
     motor_rest();
 }
 
-void app_coordinate::exe_put_body(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl){
+void app_coordinate::exe_put_body(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl) {
     auto p = robot_snap->current_snap_get();
     auto robot_ctrl = &controller_;
 
@@ -73,33 +73,8 @@ void app_coordinate::exe_put_body(snap *robot_snap, mode_state_struct state,ctrl
     robot_ctrl->right_vmc_pkg.force_x = 0;
     robot_ctrl->right_vmc_pkg.force_y = 0;
 
-    if(p->robot_raw_data.body_theta >PI/3) {
-        controller_.leg_ctrl->left_omega_only(p->left_leg,1);
-        controller_.leg_ctrl->right_omega_only(p->right_leg,1);
-
-        controller_.leg_ctrl->left_len_update(p->left_leg,0.35);
-        controller_.leg_ctrl->right_len_update(p->right_leg,0.35);
-
-        robot_ctrl->left_vmc_pkg.leg_tor = robot_ctrl->leg_ctrl->get_output().tor_left;
-        robot_ctrl->left_vmc_pkg.force_L = robot_ctrl->leg_ctrl->get_output().force_left;
-
-        robot_ctrl->right_vmc_pkg.leg_tor = robot_ctrl->leg_ctrl->get_output().tor_right;
-        robot_ctrl->right_vmc_pkg.force_L = robot_ctrl->leg_ctrl->get_output().force_right;
-    }
-    else if(p->robot_raw_data.body_theta < -PI/3) {
-        controller_.leg_ctrl->left_omega_only(p->left_leg,-1);
-        controller_.leg_ctrl->right_omega_only(p->right_leg,-1);
-
-        controller_.leg_ctrl->left_len_update(p->left_leg,0.35);
-        controller_.leg_ctrl->right_len_update(p->right_leg,0.35);
-
-        robot_ctrl->left_vmc_pkg.leg_tor = robot_ctrl->leg_ctrl->get_output().tor_left;
-        robot_ctrl->left_vmc_pkg.force_L = robot_ctrl->leg_ctrl->get_output().force_left;
-
-        robot_ctrl->right_vmc_pkg.leg_tor = robot_ctrl->leg_ctrl->get_output().tor_right;
-        robot_ctrl->right_vmc_pkg.force_L = robot_ctrl->leg_ctrl->get_output().force_right;
-    }
-    else {
+    //由于万向节死锁等一系列奇怪原因，这里只能用一些特殊方法来一起判断
+    if(p->robot_raw_data.vector_z > 0.7) {
         controller_.leg_ctrl->leg_clear();
 
         robot_ctrl->left_vmc_pkg.leg_tor = 0;
@@ -108,11 +83,77 @@ void app_coordinate::exe_put_body(snap *robot_snap, mode_state_struct state,ctrl
         robot_ctrl->right_vmc_pkg.leg_tor = 0;
         robot_ctrl->right_vmc_pkg.force_L = 0;
     }
+    else {
+        /*
+         * 翻身判定：
+         * 状态1：腿部归位
+         * 状态2：同步翻身
+         * 状态1的要求：腿的角度差大或者两个都没有堵转，第一次切换
+         * 切换至状态2的要求：腿角度差小于某种值并且腿两个都堵转，或者一只腿堵转同时自由腿超前于堵转腿一个角度
+         */
+        uint8_t body_flag = 0;//1代表硬模式，2代表软模式，0代表不动
+        float dir = 0;
+        //判断方向
+        if(p->robot_raw_data.vector_z <= 0.7 &&
+            p->robot_raw_data.body_theta > 0 && p->robot_raw_data.body_theta < PI*5/6) {
+            dir = 1;
+        }
+        else{ dir = -1;}
+        //翻身控制标志位判断
+        float delta = p->left_leg.theta- p->right_leg.theta;
+        delta < -PI? delta+= 2*PI:(delta>PI?delta-=2*PI:delta);
+        if((abs(delta) < 0.2 && abs(robot_ctrl->left_vmc_pkg.leg_tor) > 1.5 && abs(robot_ctrl->right_vmc_pkg.leg_tor) > 1.5)
+            || (abs(robot_ctrl->left_vmc_pkg.leg_tor) > 1.5 || abs(robot_ctrl->right_vmc_pkg.leg_tor) > 1.5)) {
+            if(abs(robot_ctrl->left_vmc_pkg.leg_tor) > 1.5 && -delta*dir >0.2) {
+                body_flag = 1;
+            }
+            else if(abs(robot_ctrl->right_vmc_pkg.leg_tor) > 1.5 && delta*dir >0.2) {
+                body_flag = 1;
+            }
+            else if((abs(delta) < 0.2 && abs(robot_ctrl->left_vmc_pkg.leg_tor) > 1.5 && abs(robot_ctrl->right_vmc_pkg.leg_tor) > 1.5)) {
+                body_flag = 1;
+            }
+        }
+        else {
+            body_flag = 2;
+        }
+        if(body_flag == 1 &&
+            (robot_ctrl->leg_ctrl->left_flag == LegController::E_SOFT ||
+            robot_ctrl->leg_ctrl->right_flag == LegController::E_SOFT)) {
+            robot_ctrl->leg_ctrl->left_flag = LegController::E_HARD;
+            robot_ctrl->leg_ctrl->right_flag = LegController::E_HARD;
+            robot_ctrl->leg_ctrl->left_omega_write_param(3,2.0/1000.0f,0,15,12);
+            robot_ctrl->leg_ctrl->right_omega_write_param(3,2.0/1000.0f,0,15,12);
+        }
+        else if(body_flag == 2 &&
+            (robot_ctrl->leg_ctrl->left_flag == LegController::E_HARD ||
+            robot_ctrl->leg_ctrl->right_flag == LegController::E_HARD)) {
+            robot_ctrl->leg_ctrl->left_flag = LegController::E_SOFT;
+            robot_ctrl->leg_ctrl->right_flag = LegController::E_SOFT;
+            robot_ctrl->leg_ctrl->left_omega_write_param(3,2.0/1000.0f,0,2,2);
+            robot_ctrl->leg_ctrl->right_omega_write_param(3,2.0/1000.0f,0,2,2);
+        }
+
+        robot_ctrl->leg_ctrl->left_omega_only(p->left_leg,dir-delta);
+        robot_ctrl->leg_ctrl->right_omega_only(p->right_leg,dir+delta);
+        robot_ctrl->leg_ctrl->left_len_update(p->left_leg,0.35);
+        robot_ctrl->leg_ctrl->right_len_update(p->right_leg,0.35);
+
+        auto out = robot_ctrl->leg_ctrl->get_output();
+        robot_ctrl->left_vmc_pkg.leg_tor = out.tor_left;
+        robot_ctrl->left_vmc_pkg.force_L = out.force_left;
+
+        robot_ctrl->right_vmc_pkg.leg_tor = out.tor_right;
+        robot_ctrl->right_vmc_pkg.force_L = out.force_right;
+    }
+
     //计算PKG中目标对应的电机扭矩
     robot_ctrl->vmc->tor_clc(robot_ctrl->left_vmc_pkg,p->left_leg,VMC::E_Left);
     robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg,VMC::E_Right);
 
-    bsp_uart_printf(E_UART_DEBUG,"%f\r\n",p->robot_raw_data.body_theta);
+    bsp_uart_printf(E_UART_DEBUG,"%f,%f\r\n",
+        robot_ctrl->left_vmc_pkg.leg_tor
+        ,robot_ctrl->right_vmc_pkg.leg_tor);
 
     //更新到目标输出中
     auto answer = robot_ctrl->vmc->tor_get();
@@ -125,9 +166,16 @@ void app_coordinate::exe_put_body(snap *robot_snap, mode_state_struct state,ctrl
 }
 
 void app_coordinate::exe_put_leg(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl){
-
-    auto p = robot_snap->current_snap_get();
     auto robot_ctrl = &controller_;
+    auto p = robot_snap->current_snap_get();
+
+    if(     (robot_ctrl->leg_ctrl->left_flag == LegController::E_SOFT ||
+            robot_ctrl->leg_ctrl->right_flag == LegController::E_SOFT)) {
+        robot_ctrl->leg_ctrl->left_flag = LegController::E_HARD;
+        robot_ctrl->leg_ctrl->right_flag = LegController::E_HARD;
+        robot_ctrl->leg_ctrl->left_omega_write_param(3,2.0/1000.0f,0,15,10);
+        robot_ctrl->leg_ctrl->right_omega_write_param(3,2.0/1000.0f,0,12,10);
+    }
     if(p->left_leg.theta < 0.3 || p->left_leg.theta > 3) {
         controller_.leg_ctrl->left_omega_only(p->left_leg,-1);
         controller_.leg_ctrl->left_leg_len_clear();
@@ -240,7 +288,6 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
     auto snap = robot_snap->current_snap_get();
 
     //腿部控制代码块
-
 
 }
 

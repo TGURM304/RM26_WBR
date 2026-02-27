@@ -37,6 +37,10 @@ void Coordinate::snap::snap_update() {
     raw->body_roll = observer_.ins->get_pos()->body_roll;
 
     current_snap_.state_flag |= SNAP_START;
+
+    raw->vector_x = observer_.ins->get_pos()->vector_x;
+    raw->vector_y = observer_.ins->get_pos()->vector_y;
+    raw->vector_z = observer_.ins->get_pos()->vector_z;
 }
 
 void Coordinate::snap::snap_clear() {

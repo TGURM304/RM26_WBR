@@ -60,3 +60,13 @@ void LegController::app_leg_ctrl::right_leg_len_clear() {
     right_length_pid_.clear();
 }
 
+void LegController::app_leg_ctrl::left_omega_write_param(
+    const double Kp, const double Ki, const double Kd, const double out_limit, const double iout_limit) {
+    left_omega_pid_.set_para(Kp,Ki,Kd,out_limit,iout_limit);
+}
+
+void LegController::app_leg_ctrl::right_omega_write_param(
+    const double Kp, const double Ki, const double Kd, const double out_limit, const double iout_limit) {
+    right_omega_pid_.set_para(Kp,Ki,Kd,out_limit,iout_limit);
+}
+
