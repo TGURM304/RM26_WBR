@@ -68,7 +68,7 @@ Relay::StateMapping mapping(&joint1,&joint2,&joint3,&joint4,
     &right_dynamic,&left_dynamic,&my_ins);
 Relay::message_adapter adapter(&mapping);
 LegController::app_leg_ctrl leg_controller(
-{70,2.0/1000,2,15,0},
+{70,2.0/1000,2,30,10},
 {80,0,0,3,5},
 {3,2.0/1000.0f,0,12,8},
 {10,0,0,3,3});

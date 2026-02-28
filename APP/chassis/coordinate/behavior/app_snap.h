@@ -41,6 +41,7 @@ typedef struct {
         void snap_update();
         robot_snap* current_snap_get();
         robot_snap* last_snap_get();
+        robot_snap* zero_snap_get();
         void snap_clear();
         void snap_set_zero();
         void snap_clear_S();

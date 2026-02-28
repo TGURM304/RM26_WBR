@@ -12,6 +12,10 @@
 
 #include <vector>
 
+#define REDUCE_EDGE_DOWN   300
+#define REDUCE_EDGE_UP    500
+#define DELTA_S_EDGE    0.40
+#define DELTA_VER_EDGE  1.5f
 
 namespace Coordinate {
 typedef enum {
@@ -73,10 +77,10 @@ typedef struct {
 typedef struct {
     mode_switch_cmd extern_cmd_, inner_cmd_;
     mode_state current_state_,last_state;
+    uint16_t reduce_cnt;
 } mode_state_struct;
-
 typedef struct {
-    float32_t body_height, speed, phi;
+    float32_t body_height, speed, gryo;
     bool spin_flag;
 }ctrl_struct;
     class app_coordinate {
@@ -105,7 +109,7 @@ typedef struct {
 
         void motor_tor_update();
         void motor_rest();
-        std::pair<float32_t,float32_t> roll_feed(float32_t roll_rad, float32_t left_r, float32_t right_r, float32_t target_height);
+        static std::pair<float32_t,float32_t> roll_feed(float32_t roll_rad, float32_t left_r, float32_t right_r, float32_t target_height);
 
         mode_state_struct mode_reset();
         mode_state_struct mode_ptr_search();
@@ -153,14 +157,17 @@ typedef struct {
             &app_coordinate::exe_off_ground,
             &app_coordinate::exe_get_ground_smooth
         };
-        out_tor motor_output_ = {};
+        out_tor motor_output_               = {};
         robot_controller_struct controller_ = {};
         component motor_component_ = {};
+        Relay::relay_lqr LQR_target_data = {};
         mode_state_struct mode_state_ = {
             .extern_cmd_ = CMD_EXECUTING,
             .inner_cmd_ = CMD_EXECUTING,
             .current_state_ = E_WAITING,
-            .last_state = E_WAITING};
+            .last_state = E_WAITING,
+            .reduce_cnt = 0
+        };
     };
 }
 

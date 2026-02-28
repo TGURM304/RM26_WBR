@@ -49,7 +49,9 @@ private:
     float32_t dynamic_coe_[40][6] = {};
     float32_t dynamic_K_[4][10] = {0.0f};
     float32_t state_delta_[10] = {0.0f};
-    lqr_output left_output_ = {};    lqr_output right_output_ = {};
+
+    lqr_output left_output_ = {};
+    lqr_output right_output_ = {};
 
     lqr_output dynamic_left_output_ = {};
     lqr_output dynamic_right_output_ = {};

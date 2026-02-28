@@ -12,6 +12,11 @@ Coordinate::robot_snap* Coordinate::snap::last_snap_get() {
     return &last_snap_;
 }
 
+Coordinate::robot_snap *Coordinate::snap::zero_snap_get() {
+    return &zero_snap_;
+}
+
+
 void Coordinate::snap::snap_update() {
     memcpy(&last_snap_,&current_snap_,sizeof(current_snap_));
     auto p = observer_.my_adapter_;

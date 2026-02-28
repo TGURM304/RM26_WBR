@@ -24,6 +24,9 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
     robot_snap_ptr_->snap_update();
     mode_state_.last_state = mode_state_.current_state_;
     ctrl_struct test = {};
+    test.speed = (rc->rc_r[1]*1.0f)/660.0f;
+    test.gryo = (rc->reserved*1.0f)/660.0f;
+
     if(rc->s_l == 0 && rc->s_r == -1) {
         mode_state_.current_state_ = E_PUT_BODY;
         exe_put_body(robot_snap_ptr_,mode_state_,test);
@@ -32,10 +35,28 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
         mode_state_.current_state_ = E_PUT_LEG;
         exe_put_leg(robot_snap_ptr_,mode_state_,test);
     }
+    else if(rc->s_l == 1 && rc->s_r == 0) {
+        mode_state_.current_state_ = E_CHAIR;
+        exe_chair(robot_snap_ptr_,mode_state_,test);
+    }
+    else if(rc->s_l == 1 && rc->s_r == 1) {
+        mode_state_.current_state_ = E_CHAIR;
+        exe_lqr(robot_snap_ptr_,mode_state_,test);
+    }
     else {
         mode_state_.current_state_ = E_WAITING;
         motor_rest();
     }
+
+    auto snap = robot_snap_ptr_->current_snap_get()->lqr_data;
+    auto ls = controller_.lqr_controller->get_lqr_output(LQR::E_left);
+    auto rs = controller_.lqr_controller->get_lqr_output(LQR::E_right);
+    auto ld = controller_.lqr_controller->get_dynamic(LQR::E_left);
+    auto rd = controller_.lqr_controller->get_dynamic(LQR::E_right);
+    bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f,%f,%f\r\n",
+        snap.S, snap.phi, mode_state_.current_state_,
+        mode_state_.reduce_cnt,
+        LQR_target_data.S, LQR_target_data.phi);
 
     motor_tor_update();
 }
@@ -151,10 +172,6 @@ void app_coordinate::exe_put_body(snap *robot_snap, mode_state_struct state,ctrl
     robot_ctrl->vmc->tor_clc(robot_ctrl->left_vmc_pkg,p->left_leg,VMC::E_Left);
     robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg,VMC::E_Right);
 
-    bsp_uart_printf(E_UART_DEBUG,"%f,%f\r\n",
-        robot_ctrl->left_vmc_pkg.leg_tor
-        ,robot_ctrl->right_vmc_pkg.leg_tor);
-
     //更新到目标输出中
     auto answer = robot_ctrl->vmc->tor_get();
     motor_output_.tor_j1 = answer.p_right_tor2;
@@ -219,6 +236,7 @@ void app_coordinate::exe_put_leg(snap *robot_snap, mode_state_struct state,ctrl_
     motor_output_.dynamic_right = 0;
 }
 
+//小板凳控制函数
 void app_coordinate::exe_chair(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl){
     if(state.current_state_ == E_CHAIR && state.last_state != E_CHAIR) {
         robot_snap->snap_clear_S();
@@ -231,6 +249,7 @@ void app_coordinate::exe_chair(snap *robot_snap, mode_state_struct state,ctrl_st
     controller_.leg_ctrl->right_deg_update(p->right_leg,PI/2);
     controller_.leg_ctrl->right_len_update(p->right_leg,0.17);
 
+    //此处不关系机体角度phi
     float32_t delta[10];
     delta[0] = -p->lqr_data.S;
     delta[1] = -p->lqr_data.dot_S;
@@ -269,13 +288,131 @@ void app_coordinate::exe_chair(snap *robot_snap, mode_state_struct state,ctrl_st
     motor_output_.tor_j4 = answer.p_left_tor2;
     auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
     auto right = controller_.lqr_controller->get_lqr_output(LQR::E_right);
-    motor_output_.dynamic_left = left.wheel_balance+left.wheel_move;
+    motor_output_.dynamic_left = left.wheel_balance + left.wheel_move;
     motor_output_.dynamic_right = right.wheel_balance + right.wheel_move;
 }
 
+//正常轮腿的控制部分
 void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl){
-    auto snap = robot_snap->current_snap_get();
+
+    auto p = robot_snap->current_snap_get();
+    auto zero_p = robot_snap->zero_snap_get();
     //腿部控制代码块
+
+    // 首次进入lqr模块的时候的进行数据净化
+     if(state.last_state != state.current_state_ && state.current_state_ == E_LQR) {
+         LQR_target_data = {};
+         mode_state_.reduce_cnt = 0;
+         robot_snap->snap_clear_S();
+         robot_snap->snap_set_zero();
+     }
+
+    //roll轴补偿,此处的roll轴应该是和轮腿坐标方向是相反的，first是左腿目标长度，second是右腿目标长度
+    // auto leg_target =  roll_feed(-snap->robot_raw_data.body_roll,snap->left_leg.L0,snap->right_leg.L0,ctrl.body_height);
+    // controller_.leg_ctrl->left_len_update(snap->left_leg,leg_target.first/sinf(snap->left_leg.theta));
+    // controller_.leg_ctrl->right_len_update(snap->right_leg,leg_target.second/sinf(snap->right_leg.theta));
+    controller_.leg_ctrl->left_len_update(p->left_leg,0.2);
+    controller_.leg_ctrl->right_len_update(p->right_leg,0.2);
+
+    /*我们需要在基础控制的前提下引入柔顺速度控制和位置控制转换
+     * 一下几种情况我们需要进行柔顺过度（引入衰减器）
+     * 1. 当我们的delta_S误差过大
+     * 可能是因为，打滑了、顶到墙了
+     * 打滑了我们就得捕捉到一两次误差爆掉就得引入衰减器，并且判断一段之后退出，而顶墙可以使用速度误差判断退出
+     * 2. delta_dot_S误差过大
+     * 对于顶墙，我们的误差值基本确定，所以说我们不考虑顶墙，这个主要是打滑造成的，
+     * 我们要做的是解决打滑问题，检测出来并且实现衰减和退出判断
+     *
+     * 解决办法：
+     * 当检测到delta_S delta_dot_S中有一个爆了，那就直接进入衰减模式，退出衰减的判断条件就是delta_dot_S小到某个值
+     */
+    //LQR目标值计算更新
+
+    //以下为衰减保护相关代码
+    //衰减系数可以调节，公式为：k=h^(1/n)，n为衰减次数，k为每次衰减系数，h为最终衰减到的值，也就是说经过n次迭代后衰减到h的值
+    //此处我们取h = 0.3， n = 300， k= 0.996
+    // if(mode_state_.reduce_cnt >= REDUCE_EDGE_DOWN)
+    //     LQR_target_data.S *= 0.996f;
+    // else
+    //     LQR_target_data.S += ctrl.speed/1000.0f;
+    //
+    // if( abs(ctrl.speed) >= 3.0f ||
+    //     abs(LQR_target_data.S   -   (p->lqr_data.S-zero_p->lqr_data.S)) > DELTA_S_EDGE ||
+    //     abs(LQR_target_data.dot_S - (p->lqr_data.dot_S-zero_p->lqr_data.dot_S)) > DELTA_VER_EDGE
+    //     ) {
+    //     if(mode_state_.reduce_cnt < REDUCE_EDGE_UP) {
+    //     mode_state_.reduce_cnt += 10;
+    //     }
+    // }
+    // else if(abs(LQR_target_data.dot_S - (p->lqr_data.dot_S-zero_p->lqr_data.dot_S)) < DELTA_VER_EDGE/2.0f
+    //      && mode_state_.reduce_cnt > 0)
+        mode_state_.reduce_cnt -= 1;
+
+    LQR_target_data.S += ctrl.speed/1000.0f;
+    LQR_target_data.dot_S = ctrl.speed/1000.0f;
+    LQR_target_data.phi += ctrl.gryo/1000.0f;
+
+    LQR_target_data.phi > PI? LQR_target_data.phi -= 2*PI:(LQR_target_data.phi < -PI? LQR_target_data.phi += 2*PI:0);
+    LQR_target_data.dot_phi = ctrl.gryo;
+
+    float32_t delta[10];
+    // delta[0] = target->S                    - (p->lqr_data.S                -zero_p->lqr_data.S              );
+    // delta[1] = target->dot_S                - (p->lqr_data.dot_S            -zero_p->lqr_data.dot_S          );
+    // delta[2] = target->phi                  - (p->lqr_data.phi              -zero_p->lqr_data.phi            );
+    // delta[3] = target->dot_phi              - (p->lqr_data.dot_phi          -zero_p->lqr_data.dot_phi        );
+    // delta[4] = target->left_theta           - (p->lqr_data.left_theta      );
+    // delta[5] = target->left_dot_theta       - (p->lqr_data.left_dot_theta  );
+    // delta[6] = target->right_theta          - (p->lqr_data.right_theta     );
+    // delta[7] = target->right_theta          - (p->lqr_data.right_dot_theta );
+    // delta[8] = -p->lqr_data.body_theta      - (p->lqr_data.body_theta      );
+    // delta[9] = -p->lqr_data.body_dot_theta  - (p->lqr_data.body_dot_theta  );
+    delta[0] =  LQR_target_data.S       - (p->lqr_data.S                -zero_p->lqr_data.S              );
+    delta[1] =  LQR_target_data.dot_S    - (p->lqr_data.dot_S            -zero_p->lqr_data.dot_S          );
+
+    delta[2] =  LQR_target_data.phi     - (p->lqr_data.phi              -zero_p->lqr_data.phi            );
+    delta[2] > PI? delta[2] -= 2*PI:(delta[2] < -PI? delta[2] += 2*PI:0);
+    delta[2] = (((delta[2]) > (1)) ? (1) : (((delta[2]) < -(1)) ? -(1) : (delta[2])));
+    delta[3] =  LQR_target_data.dot_phi  - (p->lqr_data.dot_phi          -zero_p->lqr_data.dot_phi        );
+    delta[4] =  0                       - (p->lqr_data.left_theta      );
+    delta[5] =  0                       - (p->lqr_data.left_dot_theta  );
+    delta[6] =  0                       - (p->lqr_data.right_theta     );
+    delta[7] =  0                       - (p->lqr_data.right_dot_theta );
+    delta[8] =  0                       - (p->lqr_data.body_theta      );
+    delta[9] =  0                       - (p->lqr_data.body_dot_theta  );
+
+    //其中，对于S，phi我们要进行限幅
+    // delta[2] > PI? delta[2]-= 2*PI:(delta[2] < -PI?delta[2] += 2*PI:0);
+    // if(abs(delta[2]) > PI/3)delta[2] = (PI/3)*delta[2]/abs(delta[2]);
+    // if(abs(delta[3]) > PI/3)delta[3] = (PI/3)*delta[3]/abs(delta[3]);
+
+    controller_.lqr_controller->static_clc(delta);
+
+    auto robot_ctrl = &controller_;
+    auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
+    auto right = controller_.lqr_controller->get_lqr_output(LQR::E_right);
+
+    robot_ctrl->left_vmc_pkg.force_y = 80;
+    robot_ctrl->left_vmc_pkg.force_x = 0;
+    robot_ctrl->right_vmc_pkg.force_y = 80;
+    robot_ctrl->right_vmc_pkg.force_x = 0;
+
+    robot_ctrl->left_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_left;
+    robot_ctrl->left_vmc_pkg.leg_tor = left.body_balance+left.body_move;
+    robot_ctrl->right_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_right;
+    robot_ctrl->right_vmc_pkg.leg_tor = right.body_balance+right.body_move;
+
+    robot_ctrl->vmc->tor_clc(robot_ctrl->left_vmc_pkg,p->left_leg,VMC::E_Left);
+    robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg,VMC::E_Right);
+
+    //更新到目标输出中
+    auto answer = robot_ctrl->vmc->tor_get();
+    motor_output_.tor_j1 = answer.p_right_tor2;
+    motor_output_.tor_j2 = answer.p_right_tor1;
+    motor_output_.tor_j3 = answer.p_left_tor1;
+    motor_output_.tor_j4 = answer.p_left_tor2;
+
+    motor_output_.dynamic_left = left.wheel_balance + left.wheel_move;
+    motor_output_.dynamic_right = right.wheel_balance + right.wheel_move;
 }
 
 mode_state_struct app_coordinate::mode_reset(){
