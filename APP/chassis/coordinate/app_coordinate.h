@@ -9,6 +9,7 @@
 #include "app_snap.h"
 #include "app_vmc.h"
 #include "bsp_rc.h"
+#include "app_biquad_filter.h"
 
 #include <vector>
 
@@ -16,6 +17,11 @@
 #define REDUCE_EDGE_UP    500
 #define DELTA_S_EDGE    0.40
 #define DELTA_VER_EDGE  1.5f
+
+#define FILTER_ORDER 2
+#define FILTER_FC_HIGH 100.0f
+#define FILTER_FC_LOW 10.0f
+#define FILTER_FS 1000.0f
 
 namespace Coordinate {
 typedef enum {
@@ -87,7 +93,13 @@ typedef struct {
     public:
         app_coordinate();
         app_coordinate(snap* robot_snap, robot_controller_struct controller, component motor_component)
-        :robot_snap_ptr_(robot_snap), controller_(controller), motor_component_(motor_component) {
+        :robot_snap_ptr_(robot_snap), controller_(controller), motor_component_(motor_component),
+         J1_filter(FILTER_FC_LOW, FILTER_FC_HIGH, FILTER_FS, FILTER_ORDER),
+         J2_filter(FILTER_FC_LOW, FILTER_FC_HIGH, FILTER_FS, FILTER_ORDER),
+         J3_filter(FILTER_FC_LOW, FILTER_FC_HIGH, FILTER_FS, FILTER_ORDER),
+         J4_filter(FILTER_FC_LOW, FILTER_FC_HIGH, FILTER_FS, FILTER_ORDER)
+         {
+
         };
         void tick();
         void test_function(const bsp_rc_data_t *rc);
@@ -168,6 +180,10 @@ typedef struct {
             .last_state = E_WAITING,
             .reduce_cnt = 0
         };
+        Filter::band_resistor J1_filter;
+        Filter::band_resistor J2_filter;
+        Filter::band_resistor J3_filter;
+        Filter::band_resistor J4_filter;
     };
 }
 

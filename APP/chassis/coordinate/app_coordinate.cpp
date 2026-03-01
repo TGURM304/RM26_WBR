@@ -53,10 +53,6 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
     auto rs = controller_.lqr_controller->get_lqr_output(LQR::E_right);
     auto ld = controller_.lqr_controller->get_dynamic(LQR::E_left);
     auto rd = controller_.lqr_controller->get_dynamic(LQR::E_right);
-    bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f,%f,%f\r\n",
-        snap.S, snap.phi, mode_state_.current_state_,
-        mode_state_.reduce_cnt,
-        LQR_target_data.S, LQR_target_data.phi);
 
     motor_tor_update();
 }
@@ -305,6 +301,8 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
          mode_state_.reduce_cnt = 0;
          robot_snap->snap_clear_S();
          robot_snap->snap_set_zero();
+         J1_filter.clear();
+         J2_filter.clear();
      }
 
     //roll轴补偿,此处的roll轴应该是和轮腿坐标方向是相反的，first是左腿目标长度，second是右腿目标长度
@@ -391,9 +389,9 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
     auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
     auto right = controller_.lqr_controller->get_lqr_output(LQR::E_right);
 
-    robot_ctrl->left_vmc_pkg.force_y = 80;
+    robot_ctrl->left_vmc_pkg.force_y = 40;
     robot_ctrl->left_vmc_pkg.force_x = 0;
-    robot_ctrl->right_vmc_pkg.force_y = 80;
+    robot_ctrl->right_vmc_pkg.force_y = 40;
     robot_ctrl->right_vmc_pkg.force_x = 0;
 
     robot_ctrl->left_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_left;
@@ -406,13 +404,14 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
 
     //更新到目标输出中
     auto answer = robot_ctrl->vmc->tor_get();
-    motor_output_.tor_j1 = answer.p_right_tor2;
-    motor_output_.tor_j2 = answer.p_right_tor1;
-    motor_output_.tor_j3 = answer.p_left_tor1;
-    motor_output_.tor_j4 = answer.p_left_tor2;
+    motor_output_.tor_j1 = answer.p_right_tor2 + answer.c_right_tor2;
+    motor_output_.tor_j2 = answer.p_right_tor1 + answer.c_right_tor1;
+    motor_output_.tor_j3 = answer.p_left_tor1 + answer.c_left_tor1;
+    motor_output_.tor_j4 = answer.p_left_tor2 + answer.c_left_tor2;
 
     motor_output_.dynamic_left = left.wheel_balance + left.wheel_move;
     motor_output_.dynamic_right = right.wheel_balance + right.wheel_move;
+    bsp_uart_printf(E_UART_DEBUG,"%f\r\n",p->robot_raw_data.body_theta);
 }
 
 mode_state_struct app_coordinate::mode_reset(){
