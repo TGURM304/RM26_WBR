@@ -15,8 +15,8 @@
 
 #define REDUCE_EDGE_DOWN   300
 #define REDUCE_EDGE_UP    500
-#define DELTA_S_EDGE    0.40
-#define DELTA_VER_EDGE  1.5f
+#define DELTA_S_EDGE    0.40f
+#define DELTA_VER_EDGE  2.5f
 
 #define FILTER_ORDER 2
 #define FILTER_FC_HIGH 100.0f
@@ -84,6 +84,8 @@ typedef struct {
     mode_switch_cmd extern_cmd_, inner_cmd_;
     mode_state current_state_,last_state;
     uint16_t reduce_cnt;
+    float delta_S;
+    float height_record;
 } mode_state_struct;
 typedef struct {
     float32_t body_height, speed, gryo;
@@ -93,11 +95,7 @@ typedef struct {
     public:
         app_coordinate();
         app_coordinate(snap* robot_snap, robot_controller_struct controller, component motor_component)
-        :robot_snap_ptr_(robot_snap), controller_(controller), motor_component_(motor_component),
-         J1_filter(FILTER_FC_LOW, FILTER_FC_HIGH, FILTER_FS, FILTER_ORDER),
-         J2_filter(FILTER_FC_LOW, FILTER_FC_HIGH, FILTER_FS, FILTER_ORDER),
-         J3_filter(FILTER_FC_LOW, FILTER_FC_HIGH, FILTER_FS, FILTER_ORDER),
-         J4_filter(FILTER_FC_LOW, FILTER_FC_HIGH, FILTER_FS, FILTER_ORDER)
+        :robot_snap_ptr_(robot_snap), controller_(controller), motor_component_(motor_component)
          {
 
         };
@@ -178,12 +176,10 @@ typedef struct {
             .inner_cmd_ = CMD_EXECUTING,
             .current_state_ = E_WAITING,
             .last_state = E_WAITING,
-            .reduce_cnt = 0
+            .reduce_cnt = 0,
+            .delta_S = 0,
+            .height_record = 0
         };
-        Filter::band_resistor J1_filter;
-        Filter::band_resistor J2_filter;
-        Filter::band_resistor J3_filter;
-        Filter::band_resistor J4_filter;
     };
 }
 

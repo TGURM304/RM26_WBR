@@ -25,7 +25,8 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
     mode_state_.last_state = mode_state_.current_state_;
     ctrl_struct test = {};
     test.speed = (rc->rc_r[1]*1.0f)/660.0f;
-    test.gryo = (rc->reserved*1.0f)/660.0f;
+    test.gryo = -(rc->reserved*1.0f)/660.0f;
+    test.body_height = (rc->rc_l[1]*1.0f)/660.0f/5.0f;
 
     if(rc->s_l == 0 && rc->s_r == -1) {
         mode_state_.current_state_ = E_PUT_BODY;
@@ -40,7 +41,7 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
         exe_chair(robot_snap_ptr_,mode_state_,test);
     }
     else if(rc->s_l == 1 && rc->s_r == 1) {
-        mode_state_.current_state_ = E_CHAIR;
+        mode_state_.current_state_ = E_LQR;
         exe_lqr(robot_snap_ptr_,mode_state_,test);
     }
     else {
@@ -293,24 +294,31 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
 
     auto p = robot_snap->current_snap_get();
     auto zero_p = robot_snap->zero_snap_get();
-    //腿部控制代码块
 
     // 首次进入lqr模块的时候的进行数据净化
      if(state.last_state != state.current_state_ && state.current_state_ == E_LQR) {
-         LQR_target_data = {};
+         LQR_target_data.S = 0;
+         LQR_target_data.phi = 0;
+         LQR_target_data.dot_S = 0;
+         LQR_target_data.dot_phi = 0;
+
          mode_state_.reduce_cnt = 0;
+         mode_state_.delta_S = 0;
+         mode_state_.height_record = 0.18f;
+
          robot_snap->snap_clear_S();
          robot_snap->snap_set_zero();
-         J1_filter.clear();
-         J2_filter.clear();
      }
 
+    mode_state_.height_record += ctrl.body_height/1000.0f;
+     if(mode_state_.height_record > 0.40f) mode_state_.height_record = 0.40f;
+     else if(mode_state_.height_record < 0.15f) mode_state_.height_record = 0.15f;
     //roll轴补偿,此处的roll轴应该是和轮腿坐标方向是相反的，first是左腿目标长度，second是右腿目标长度
     // auto leg_target =  roll_feed(-snap->robot_raw_data.body_roll,snap->left_leg.L0,snap->right_leg.L0,ctrl.body_height);
     // controller_.leg_ctrl->left_len_update(snap->left_leg,leg_target.first/sinf(snap->left_leg.theta));
     // controller_.leg_ctrl->right_len_update(snap->right_leg,leg_target.second/sinf(snap->right_leg.theta));
-    controller_.leg_ctrl->left_len_update(p->left_leg,0.2);
-    controller_.leg_ctrl->right_len_update(p->right_leg,0.2);
+    controller_.leg_ctrl->left_len_update(p->left_leg,mode_state_.height_record);
+    controller_.leg_ctrl->right_len_update(p->right_leg,mode_state_.height_record);
 
     /*我们需要在基础控制的前提下引入柔顺速度控制和位置控制转换
      * 一下几种情况我们需要进行柔顺过度（引入衰减器）
@@ -324,50 +332,41 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
      * 解决办法：
      * 当检测到delta_S delta_dot_S中有一个爆了，那就直接进入衰减模式，退出衰减的判断条件就是delta_dot_S小到某个值
      */
-    //LQR目标值计算更新
-
     //以下为衰减保护相关代码
     //衰减系数可以调节，公式为：k=h^(1/n)，n为衰减次数，k为每次衰减系数，h为最终衰减到的值，也就是说经过n次迭代后衰减到h的值
     //此处我们取h = 0.3， n = 300， k= 0.996
-    // if(mode_state_.reduce_cnt >= REDUCE_EDGE_DOWN)
-    //     LQR_target_data.S *= 0.996f;
-    // else
-    //     LQR_target_data.S += ctrl.speed/1000.0f;
-    //
-    // if( abs(ctrl.speed) >= 3.0f ||
-    //     abs(LQR_target_data.S   -   (p->lqr_data.S-zero_p->lqr_data.S)) > DELTA_S_EDGE ||
-    //     abs(LQR_target_data.dot_S - (p->lqr_data.dot_S-zero_p->lqr_data.dot_S)) > DELTA_VER_EDGE
-    //     ) {
-    //     if(mode_state_.reduce_cnt < REDUCE_EDGE_UP) {
-    //     mode_state_.reduce_cnt += 10;
-    //     }
-    // }
-    // else if(abs(LQR_target_data.dot_S - (p->lqr_data.dot_S-zero_p->lqr_data.dot_S)) < DELTA_VER_EDGE/2.0f
-    //      && mode_state_.reduce_cnt > 0)
-        mode_state_.reduce_cnt -= 1;
+    if(mode_state_.reduce_cnt >= REDUCE_EDGE_DOWN) {
+        mode_state_.delta_S *= 0.996f;
+        LQR_target_data.S = mode_state_.delta_S + (p->lqr_data.S -zero_p->lqr_data.S);
+    }
+    else {
+        mode_state_.delta_S = LQR_target_data.S - (p->lqr_data.S -zero_p->lqr_data.S);
+        LQR_target_data.S += ctrl.speed/1000.0f;
+    }
+    if( abs(ctrl.speed) >= 3.0f ||
+        abs(mode_state_.delta_S) > DELTA_S_EDGE ||
+        abs(LQR_target_data.dot_S - (p->lqr_data.dot_S-zero_p->lqr_data.dot_S)) > DELTA_VER_EDGE
+        ) {
+        if(mode_state_.reduce_cnt < REDUCE_EDGE_UP) {
+        mode_state_.reduce_cnt += 10;
+        }
+    }
+    else if(abs(LQR_target_data.dot_S - (p->lqr_data.dot_S - zero_p->lqr_data.dot_S)) < 0.5f
+         && mode_state_.reduce_cnt > 0)
+       mode_state_.reduce_cnt -= 1;
 
-    LQR_target_data.S += ctrl.speed/1000.0f;
-    LQR_target_data.dot_S = ctrl.speed/1000.0f;
+    LQR_target_data.dot_S = ctrl.speed;
     LQR_target_data.phi += ctrl.gryo/1000.0f;
 
     LQR_target_data.phi > PI? LQR_target_data.phi -= 2*PI:(LQR_target_data.phi < -PI? LQR_target_data.phi += 2*PI:0);
     LQR_target_data.dot_phi = ctrl.gryo;
 
     float32_t delta[10];
-    // delta[0] = target->S                    - (p->lqr_data.S                -zero_p->lqr_data.S              );
-    // delta[1] = target->dot_S                - (p->lqr_data.dot_S            -zero_p->lqr_data.dot_S          );
-    // delta[2] = target->phi                  - (p->lqr_data.phi              -zero_p->lqr_data.phi            );
-    // delta[3] = target->dot_phi              - (p->lqr_data.dot_phi          -zero_p->lqr_data.dot_phi        );
-    // delta[4] = target->left_theta           - (p->lqr_data.left_theta      );
-    // delta[5] = target->left_dot_theta       - (p->lqr_data.left_dot_theta  );
-    // delta[6] = target->right_theta          - (p->lqr_data.right_theta     );
-    // delta[7] = target->right_theta          - (p->lqr_data.right_dot_theta );
-    // delta[8] = -p->lqr_data.body_theta      - (p->lqr_data.body_theta      );
-    // delta[9] = -p->lqr_data.body_dot_theta  - (p->lqr_data.body_dot_theta  );
     delta[0] =  LQR_target_data.S       - (p->lqr_data.S                -zero_p->lqr_data.S              );
     delta[1] =  LQR_target_data.dot_S    - (p->lqr_data.dot_S            -zero_p->lqr_data.dot_S          );
-
-    delta[2] =  LQR_target_data.phi     - (p->lqr_data.phi              -zero_p->lqr_data.phi            );
+    float temp = (p->lqr_data.phi              -zero_p->lqr_data.phi            );
+    temp > PI? temp -= 2*PI:(temp < -PI? temp += 2*PI:0);
+    delta[2] =  LQR_target_data.phi     - temp;
     delta[2] > PI? delta[2] -= 2*PI:(delta[2] < -PI? delta[2] += 2*PI:0);
     delta[2] = (((delta[2]) > (1)) ? (1) : (((delta[2]) < -(1)) ? -(1) : (delta[2])));
     delta[3] =  LQR_target_data.dot_phi  - (p->lqr_data.dot_phi          -zero_p->lqr_data.dot_phi        );
@@ -378,20 +377,15 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
     delta[8] =  0                       - (p->lqr_data.body_theta      );
     delta[9] =  0                       - (p->lqr_data.body_dot_theta  );
 
-    //其中，对于S，phi我们要进行限幅
-    // delta[2] > PI? delta[2]-= 2*PI:(delta[2] < -PI?delta[2] += 2*PI:0);
-    // if(abs(delta[2]) > PI/3)delta[2] = (PI/3)*delta[2]/abs(delta[2]);
-    // if(abs(delta[3]) > PI/3)delta[3] = (PI/3)*delta[3]/abs(delta[3]);
-
     controller_.lqr_controller->static_clc(delta);
 
     auto robot_ctrl = &controller_;
     auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
     auto right = controller_.lqr_controller->get_lqr_output(LQR::E_right);
 
-    robot_ctrl->left_vmc_pkg.force_y = 40;
+    robot_ctrl->left_vmc_pkg.force_y = 50;
     robot_ctrl->left_vmc_pkg.force_x = 0;
-    robot_ctrl->right_vmc_pkg.force_y = 40;
+    robot_ctrl->right_vmc_pkg.force_y = 50;
     robot_ctrl->right_vmc_pkg.force_x = 0;
 
     robot_ctrl->left_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_left;
@@ -411,7 +405,7 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
 
     motor_output_.dynamic_left = left.wheel_balance + left.wheel_move;
     motor_output_.dynamic_right = right.wheel_balance + right.wheel_move;
-    bsp_uart_printf(E_UART_DEBUG,"%f\r\n",p->robot_raw_data.body_theta);
+    bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f\r\n",delta[0],delta[1],(float)mode_state_.reduce_cnt,mode_state_.delta_S);
 }
 
 mode_state_struct app_coordinate::mode_reset(){
