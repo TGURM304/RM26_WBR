@@ -28,14 +28,15 @@ Motor::DMMotor pit_motor("pit_motor",Motor::DMMotor::J4310,
         .kp_max = 500, .kd_max = 5});
 
 Controller::PID pit_pos(0,0,0,0,0);
-Controller::PID pit_speed(0,0,0,0,0);
-Controller::PID yaw_pos(8,0,0,8,0);
-Controller::PID yaw_speed(0.25,2.0/1000,0,3,0.5);
+Controller::PID pit_speed(1,0,0,1,0.5);
+Controller::PID yaw_pos(8,0,0,10,0);
+Controller::PID yaw_speed(0.4,0.1/1000.0f,0,3,0.2);
 
-Gimbal::Head my_head(&yaw_motor,&pit_motor);
 
 auto ins = app_ins_data();
 auto rc = bsp_rc_data();
+
+Gimbal::Head my_head(&yaw_motor,&pit_motor,ins);
 
 void app_gimbal_task(void *args) {
     // Wait for system init.
@@ -49,7 +50,7 @@ void app_gimbal_task(void *args) {
     while(true) {
 
         my_head.head_update();
-        my_head.head_pid_clc(((float)(rc->rc_r[0]))*3/640.0f,0);
+        my_head.head_pid_clc(0,(float)(rc->rc_r[1])/640.0f);
         if(rc->s_l == 1) my_head.head_output();
         else my_head.head_relax();
         // bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f\r\n",

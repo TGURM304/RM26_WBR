@@ -26,25 +26,32 @@ void Head::head_init(const Controller::PID& yaw_pos_param,
     pit_motor_->enable();
 }
 
-void Head::head_pid_clc(float delta_yaw, float delta_pit) {
+void Head::head_pid_clc(float target_yaw, float target_pit) {
     head_update();
-    float target_yaw_speed = yaw_pos_.update(gimbal_pkg_.yaw_pos,delta_yaw);
-    float yaw_target_current = yaw_speed_.update(gimbal_pkg_.yaw_speed,target_yaw_speed);
+    float target_yaw_speed = yaw_pos_.update(gimbal_pkg_.ins_yaw,target_yaw*0.9f);
+    // float target_yaw_speed = delta_yaw;
+    float yaw_target_current = yaw_speed_.update(gimbal_pkg_.ins_yaw_dot,target_yaw_speed);
     // float yaw_target_current = yaw_speed_.update(gimbal_pkg_.yaw_speed,delta_yaw*10);
 
-    float target_pit_speed = pit_pos_.update(delta_pit,0.0f);
+    // float target_pit_speed = pit_pos_.update(gimbal_pkg_.ins_pit,target_pit);
+    float target_pit_speed = target_pit;
     float pit_out = pit_speed_.update(pit_motor_->status.vel, target_pit_speed);
 
-bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f\r\n"
-    ,gimbal_pkg_.yaw_pos,delta_yaw,gimbal_pkg_.yaw_speed,target_yaw_speed);
+    float yaw_out_temp = yaw_target_current*16384.0f/3.0f;
+    pid_yaw_out_ = yaw_out_filter_.process(yaw_out_temp);
+    float forward_temp = 0;
+    forward_temp = 0.22f*tanhf(gimbal_pkg_.ins_yaw_dot*1.5f)*16384.0f/3.0f;
+    pid_yaw_out_ += forward_temp;
 
-    pid_yaw_out_ = yaw_target_current*16384.0f/3.0f;
+    bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f,%f\r\n",target_pit,
+        gimbal_pkg_.ins_pit,pit_out);
+
     pid_pit_out_ = pit_out;
 }
 
 void Head::head_relax() {
     yaw_motor_->update(0);
-    pit_motor_->update(0);
+    pit_motor_->control(0,0,0,0,0);
 }
 
 void Head::head_active(){
@@ -63,15 +70,21 @@ void Head::head_update() {
     else if(temp < -8192/2.0f)
         temp += 8192;
     gimbal_pkg_.yaw_pos = temp*2*PI/8192.0f;
-    yaw_filter_.input(yaw_motor_->status.speed*2*PI/60.0f);
-    gimbal_pkg_.yaw_speed = yaw_filter_.get();
-    // gimbal_pkg_.yaw_speed = yaw_filter_.get();
+    gimbal_pkg_.yaw_speed = yaw_motor_->status.speed/60.0f*2*PI;
 
     gimbal_pkg_.pit_pos = pit_motor_->status.pos;
     gimbal_pkg_.pit_speed = pit_motor_->status.vel;
+
+    //这里是安装方向问题
+    gimbal_pkg_.ins_pit = ins_->roll*PI/180.0f;
+    gimbal_pkg_.ins_yaw = ins_->yaw*PI/180.0f;
+
+    gimbal_pkg_.ins_rol_dot = ins_->raw.gyro[0];
+    gimbal_pkg_.ins_pit_dot = ins_->raw.gyro[1];
+    gimbal_pkg_.ins_yaw_dot = ins_->raw.gyro[2];
 }
 
 void Head::head_output(){
     yaw_motor_->update(pid_yaw_out_);
-    pit_motor_->update(pid_pit_out_);
+    pit_motor_->control(0,0,0,0,pid_pit_out_);
 }

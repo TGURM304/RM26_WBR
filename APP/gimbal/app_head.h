@@ -4,11 +4,13 @@
 
 #ifndef APP_HEAD_H
 #define APP_HEAD_H
-#include "app_midaverage_filter.h"
-#include "app_motor.h"
+
 #include "ctrl_pid.h"
 #include "dev_motor_dji.h"
 #include "dev_motor_dm.h"
+#include "app_biquad_filter.h"
+#include "app_ins.h"
+
 #define GM6020_TOR_TO_CURRENT(tor) (tor/0.741f)
 
 namespace Gimbal {
@@ -19,12 +21,14 @@ typedef struct {
     float yaw_current;
     float pit_pos;
     float pit_speed;
+    float ins_yaw, ins_pit, ins_rol;
+    float ins_yaw_dot, ins_pit_dot, ins_rol_dot;
 }head_pkg;
 
 class Head {
 public:
-    Head(Motor::DJIMotor *yaw_ptr, Motor::DMMotor *pitch_ptr)
-        :yaw_motor_(yaw_ptr), pit_motor_(pitch_ptr) {
+    Head(Motor::DJIMotor *yaw_ptr, Motor::DMMotor *pitch_ptr, const app_ins_data_t *ins)
+        :yaw_motor_(yaw_ptr), pit_motor_(pitch_ptr), ins_(ins) {
 
     }
     void head_init(const Controller::PID& yaw_pos_param,
@@ -32,7 +36,7 @@ public:
          const Controller::PID& pit_pos_param,
          const Controller::PID& pit_speed_param
         );
-    void head_pid_clc(float delta_yaw, float delta_pit);
+    void head_pid_clc(float target_yaw, float target_pit);
     void head_relax();
     void head_update();
     void head_active();
@@ -44,7 +48,8 @@ private:
     Motor::DJIMotor *yaw_motor_;
     Motor::DMMotor *pit_motor_;
     Controller::PID pit_speed_, pit_pos_, yaw_speed_, yaw_pos_;
-    TrimmedMeanFilter<10,float> yaw_filter_;
+    Filter::BiquadFilter yaw_out_filter_{ 100, 1000, Filter::E_LOW_PASS };
+    const app_ins_data_t *ins_;
     uint16_t head_flag_{};
 };
 }
