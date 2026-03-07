@@ -13,6 +13,7 @@
 
 #define GM6020_TOR_TO_CURRENT(tor) (tor/0.741f)
 
+//该文件代码仅提供云台pitch和yaw的控制器，其他逻辑代码等请另寻他处
 namespace Gimbal {
 typedef struct {
     float yaw_zero_point;

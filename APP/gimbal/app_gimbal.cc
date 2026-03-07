@@ -4,9 +4,10 @@
 
 #include "app_gimbal.h"
 
-#include "app_head.h"
+#include "app_head_controller.h"
 #include "bsp_uart.h"
 #include "dev_motor_dm.h"
+#include "app_second_order.h"
 
 #ifdef COMPILE_GIMBAL
 
@@ -29,8 +30,8 @@ Motor::DMMotor pit_motor("pit_motor",Motor::DMMotor::J4310,
 
 Controller::PID pit_pos(4,0,0,6,0);
 Controller::PID pit_speed(1.2,2/1000.0f,0,4,2);
-Controller::PID yaw_pos(8,0,0,10,0);
-Controller::PID yaw_speed(0.4,0.1/1000.0f,0,3,0.2);
+Controller::PID yaw_pos(25,0,0,10,0);
+Controller::PID yaw_speed(1.5,0.1/1000.0f,0,3,0.2);
 
 
 auto ins = app_ins_data();
@@ -47,20 +48,22 @@ void app_gimbal_task(void *args) {
     yaw_motor.enable();
     pit_motor.init();
     pit_motor.enable();
+    PathReference::second_order pitch_path(1000, 40, 1);
+    PathReference::second_order yaw_path(1000, 40, 1);
     while(true) {
 
         my_head.head_update();
-        my_head.head_pid_clc((float)(rc->rc_r[0])/640.0f,(float)(rc->rc_r[1])/640.0f);
+        // my_head.head_pid_clc(((float)(rc->rc_r[0]))/640.0f,(float)((rc->rc_r[1]))/640.0f);
+        float raw_pit = ((float)(rc->rc_r[1]))/640.0f;
+        float path_pit = pitch_path.update(raw_pit);
+        float raw_yaw = ((float)(rc->rc_r[0]))/640.0f;
+        float path_yaw = yaw_path.update(raw_yaw);
+        my_head.head_pid_clc(path_yaw,path_pit);
+
         if(rc->s_l == 1) my_head.head_output();
         else my_head.head_relax();
-        // bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f\r\n",
-        //     pit_motor.status.pos,yaw_motor.status.angle,
-        //     yaw_motor.status.current,yaw_motor.status.speed);
-        // bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f\r\n"
-        //     , my_head.gimbal_pkg_.yaw_current,
-        //     my_head.pid_yaw_out_,
-        //     my_head.gimbal_pkg_.yaw_speed,
-        //     (float)(rc->rc_r[0])*2/640.0f);
+
+
         OS::Task::SleepMilliseconds(1);
     }
 }
