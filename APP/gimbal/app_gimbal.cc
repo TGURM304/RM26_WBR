@@ -27,8 +27,8 @@ Motor::DMMotor pit_motor("pit_motor",Motor::DMMotor::J4310,
         .mode = Motor::DMMotor::MIT, .p_max = 12.5, .v_max = 30, .t_max = 10,
         .kp_max = 500, .kd_max = 5});
 
-Controller::PID pit_pos(0,0,0,0,0);
-Controller::PID pit_speed(1,0,0,1,0.5);
+Controller::PID pit_pos(4,0,0,6,0);
+Controller::PID pit_speed(1.2,2/1000.0f,0,4,2);
 Controller::PID yaw_pos(8,0,0,10,0);
 Controller::PID yaw_speed(0.4,0.1/1000.0f,0,3,0.2);
 
@@ -50,7 +50,7 @@ void app_gimbal_task(void *args) {
     while(true) {
 
         my_head.head_update();
-        my_head.head_pid_clc(0,(float)(rc->rc_r[1])/640.0f);
+        my_head.head_pid_clc((float)(rc->rc_r[0])/640.0f,(float)(rc->rc_r[1])/640.0f);
         if(rc->s_l == 1) my_head.head_output();
         else my_head.head_relax();
         // bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f\r\n",

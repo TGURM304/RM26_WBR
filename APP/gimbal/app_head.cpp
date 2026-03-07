@@ -33,9 +33,8 @@ void Head::head_pid_clc(float target_yaw, float target_pit) {
     float yaw_target_current = yaw_speed_.update(gimbal_pkg_.ins_yaw_dot,target_yaw_speed);
     // float yaw_target_current = yaw_speed_.update(gimbal_pkg_.yaw_speed,delta_yaw*10);
 
-    // float target_pit_speed = pit_pos_.update(gimbal_pkg_.ins_pit,target_pit);
-    float target_pit_speed = target_pit;
-    float pit_out = pit_speed_.update(pit_motor_->status.vel, target_pit_speed);
+    //零点置位置0.04rad
+    gimbal_pkg_.target_pit_motor_rad = 0.04f - target_pit;
 
     float yaw_out_temp = yaw_target_current*16384.0f/3.0f;
     pid_yaw_out_ = yaw_out_filter_.process(yaw_out_temp);
@@ -43,10 +42,9 @@ void Head::head_pid_clc(float target_yaw, float target_pit) {
     forward_temp = 0.22f*tanhf(gimbal_pkg_.ins_yaw_dot*1.5f)*16384.0f/3.0f;
     pid_yaw_out_ += forward_temp;
 
-    bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f,%f\r\n",target_pit,
-        gimbal_pkg_.ins_pit,pit_out);
-
-    pid_pit_out_ = pit_out;
+    bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f\r\n",
+        gimbal_pkg_.target_pit_motor_rad, pit_motor_->status.pos,pit_motor_->status.torque);
+    // pid_pit_out_ = pit_out;
 }
 
 void Head::head_relax() {
@@ -79,12 +77,12 @@ void Head::head_update() {
     gimbal_pkg_.ins_pit = ins_->roll*PI/180.0f;
     gimbal_pkg_.ins_yaw = ins_->yaw*PI/180.0f;
 
-    gimbal_pkg_.ins_rol_dot = ins_->raw.gyro[0];
-    gimbal_pkg_.ins_pit_dot = ins_->raw.gyro[1];
+    gimbal_pkg_.ins_pit_dot = ins_->raw.gyro[0];
     gimbal_pkg_.ins_yaw_dot = ins_->raw.gyro[2];
 }
 
 void Head::head_output(){
     yaw_motor_->update(pid_yaw_out_);
-    pit_motor_->control(0,0,0,0,pid_pit_out_);
+    // pit_motor_->control(0,0,0,0,pid_pit_out_);
+    pit_motor_->control(gimbal_pkg_.target_pit_motor_rad,0,100,1.5,0);
 }

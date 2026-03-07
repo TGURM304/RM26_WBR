@@ -23,6 +23,7 @@ typedef struct {
     float pit_speed;
     float ins_yaw, ins_pit, ins_rol;
     float ins_yaw_dot, ins_pit_dot, ins_rol_dot;
+    float target_pit_motor_rad;
 }head_pkg;
 
 class Head {
@@ -49,6 +50,7 @@ private:
     Motor::DMMotor *pit_motor_;
     Controller::PID pit_speed_, pit_pos_, yaw_speed_, yaw_pos_;
     Filter::BiquadFilter yaw_out_filter_{ 100, 1000, Filter::E_LOW_PASS };
+    Filter::BiquadFilter pit_out_filter_{ 100, 1000, Filter::E_LOW_PASS };
     const app_ins_data_t *ins_;
     uint16_t head_flag_{};
 };
