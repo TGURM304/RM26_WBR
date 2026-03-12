@@ -11,7 +11,7 @@
 using namespace Gimbal;
 
 void Head::head_init(const Controller::PID& yaw_pos_param,
-        const Controller::PID& yaw_speed_param) {
+    const Controller::PID& yaw_speed_param) {
     yaw_speed_ = yaw_speed_param;
     yaw_pos_ = yaw_pos_param;
 
@@ -36,9 +36,11 @@ void Head::head_pid_clc(float target_yaw, float target_pit) {
     float target_yaw_speed = yaw_pos_.update(yaw_delta,0);
     float yaw_target_current = yaw_speed_.update(robo_snap_->get_snap_pkg().ins_yaw_dot,target_yaw_speed);
 
-    //零点置位置
-    float pit_delta = robo_snap_->get_snap_pkg().ins_pit - target_pit;
-    head_ctrl_pkg_.pit_pos = robo_snap_->get_snap_pkg().pit_motor_encoder + pit_delta;
+    //此处默认轮腿身子是平的了，后续可以增加姿态补偿
+    float pit_target = robo_snap_->get_pitch_zero() + target_pit;
+    pit_target > PIT_LIMIT_MAX ? pit_target = PIT_LIMIT_MAX :
+        (pit_target < PIT_LIMIT_MIN ? pit_target = PIT_LIMIT_MIN : 0);
+    head_ctrl_pkg_.pit_pos = pit_target;
 
     float yaw_out_temp = yaw_target_current*16384.0f/3.0f;
     pid_yaw_out_ = yaw_out_filter_.process(yaw_out_temp);
@@ -66,5 +68,5 @@ void Head::head_update() {
 
 void Head::head_output(){
     yaw_motor_->update(pid_yaw_out_);
-    pit_motor_->control(head_ctrl_pkg_.pit_pos,0,100,2,0);
+    pit_motor_->control(head_ctrl_pkg_.pit_pos,0,40,2,0);
 }

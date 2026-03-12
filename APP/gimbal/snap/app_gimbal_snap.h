@@ -8,9 +8,9 @@
 #include "dev_motor_dji.h"
 #include "dev_motor_dm.h"
 
-#define PITCH_ZERO_POINT 1.073f
-#define PIT_LIMIT_MAX 0.5;
-#define PIT_LIMIT_MIN -0.5;
+#define PITCH_ZERO_POINT 1.12f
+#define PIT_LIMIT_MAX 1.5
+#define PIT_LIMIT_MIN 0.75
 namespace Gimbal {
 //云台快照系统，所有的控制器统一接口，方便后续的功能开发和维护
 typedef struct {
