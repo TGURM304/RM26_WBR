@@ -68,10 +68,14 @@ Relay::StateMapping mapping(&joint1,&joint2,&joint3,&joint4,
     &right_dynamic,&left_dynamic,&my_ins);
 Relay::message_adapter adapter(&mapping);
 LegController::app_leg_ctrl leg_controller(
-{70,2.0/1000,2,30,10},
-{80,0,0,3,5},
+{80,2.0/1000,0,30,10},
+{50,0,0,5,0},
 {3,2.0/1000.0f,0,12,8},
 {10,0,0,3,3});
+LegController::wheel_speed_controller dog_controller(
+    {.Kp = 10, .Ki = 1, .Kd = 0, .out_limit = 2.5, .iout_limit = 1.5},
+    {.Kp = 2, .Ki = 0, .Kd = 0, .out_limit = 2, .iout_limit = 1.5});
+
 VMC::app_vmc vmc;
 LQR::LQR_controller lqr_controller((float32_t *)K,(float32_t *)K_Fit_Coefficients);
 Coordinate::observer_struct my_observer = {
@@ -91,7 +95,8 @@ Coordinate::robot_controller_struct my_controller_struct = {
 .left_vmc_pkg = {},
 .right_vmc_pkg = {},
 .leg_ctrl = &leg_controller,
-.lqr_controller = &lqr_controller};
+.lqr_controller = &lqr_controller,
+.dog_ctrl = &dog_controller};
 Coordinate::component my_component = {
 .j1 = &joint1,
 .j2 = &joint2,
@@ -143,6 +148,7 @@ void app_chassis_init() {
         joint3.pkg_enable(), OS::Task::SleepMilliseconds(10);
     // while(joint4.get_status().err != 1)
         joint4.pkg_enable(), OS::Task::SleepMilliseconds(10);
+    my_coordinate.init();
 }
 
 #endif

@@ -28,10 +28,10 @@
 #define SYS_FLASH_KEY 998244353
 
 // 底盘
-#define COMPILE_CHASSIS
+// #define COMPILE_CHASSIS
 
 // 云台
-// #define COMPILE_GIMBAL
+#define COMPILE_GIMBAL
 
 // 若不是同时编译云台和底盘，则启用双控制器选项
 #if !(defined(COMPILE_CHASSIS) && defined(COMPILE_GIMBAL))

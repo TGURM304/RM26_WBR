@@ -13,49 +13,80 @@ void app_coordinate::tick() {
     robot_snap_ptr_->snap_update();
 
     //根据当前状态选择不同的模式函数
-    motor_rest();
     //选择对应的模式函数
     // (this->*behavior_table_[mode_state_.current_state_])(robot_snap_ptr_, mode_state_);
     //发送扭矩到关节模组，只能在这用
     motor_tor_update();
+
+    //按照频率发送内容
+    send_cnt++;
+    if(send_cnt >= 5) {
+        send_cnt = 0;
+        auto p = robot_snap_ptr_->current_snap_get();
+        chassis_send_.vector_x = p->robot_raw_data.vector_x;
+        chassis_send_.vector_y = p->robot_raw_data.vector_y;
+        chassis_send_.vector_z = p->robot_raw_data.vector_z;
+        chassis_send_.mode = mode_state_.current_state_;
+        app_msg_can_send(E_CAN3,CHASSIS_ID,chassis_send_);
+    }
+
+}
+
+void app_coordinate::init(){
+    ibc_gimbal_.init();
 }
 
 void app_coordinate::test_function(const bsp_rc_data_t *rc){
-    robot_snap_ptr_->snap_update();
+
+    tick();
+
     mode_state_.last_state = mode_state_.current_state_;
     ctrl_struct test = {};
-    test.speed = (rc->rc_r[1]*1.0f)/660.0f;
-    test.gryo = -(rc->reserved*1.0f)/660.0f;
-    test.body_height = (rc->rc_l[1]*1.0f)/660.0f/5.0f;
+    test.ver_x = (rc->rc_l[1]*1.0f)/660.0f;
+    test.ver_y = -(rc->rc_l[0]*1.0f)/660.0f;
 
-    if(rc->s_l == 0 && rc->s_r == -1) {
-        mode_state_.current_state_ = E_PUT_BODY;
-        exe_put_body(robot_snap_ptr_,mode_state_,test);
-    }
-    else if(rc->s_l == 1 && rc->s_r == -1) {
-        mode_state_.current_state_ = E_PUT_LEG;
-        exe_put_leg(robot_snap_ptr_,mode_state_,test);
-    }
-    else if(rc->s_l == 1 && rc->s_r == 0) {
-        mode_state_.current_state_ = E_CHAIR;
-        exe_chair(robot_snap_ptr_,mode_state_,test);
-    }
-    else if(rc->s_l == 1 && rc->s_r == 1) {
-        mode_state_.current_state_ = E_LQR;
-        exe_lqr(robot_snap_ptr_,mode_state_,test);
+    if(rc->s_l == 1) {
+        mode_state_.current_state_ = E_DOG;
+        exe_dog(robot_snap_ptr_,mode_state_,test);
     }
     else {
         mode_state_.current_state_ = E_WAITING;
         motor_rest();
     }
 
-    auto snap = robot_snap_ptr_->current_snap_get()->lqr_data;
-    auto ls = controller_.lqr_controller->get_lqr_output(LQR::E_left);
-    auto rs = controller_.lqr_controller->get_lqr_output(LQR::E_right);
-    auto ld = controller_.lqr_controller->get_dynamic(LQR::E_left);
-    auto rd = controller_.lqr_controller->get_dynamic(LQR::E_right);
-
-    motor_tor_update();
+    // robot_snap_ptr_->snap_update();
+    // mode_state_.last_state = mode_state_.current_state_;
+    // ctrl_struct test = {};
+    // test.speed = (rc->rc_r[1]*1.0f)/660.0f;
+    // test.gry = -(rc->reserved*1.0f)/660.0f;
+    // test.body_height = (rc->rc_l[1]*1.0f)/660.0f/5.0f;
+    //
+    // if(rc->s_l == 0 && rc->s_r == -1) {
+    //     mode_state_.current_state_ = E_PUT_BODY;
+    //     exe_put_body(robot_snap_ptr_,mode_state_,test);
+    // }
+    // else if(rc->s_l == 1 && rc->s_r == -1) {
+    //     mode_state_.current_state_ = E_PUT_LEG;
+    //     exe_put_leg(robot_snap_ptr_,mode_state_,test);
+    // }
+    // else if(rc->s_l == 1 && rc->s_r == 0) {
+    //     mode_state_.current_state_ = E_CHAIR;
+    //     exe_chair(robot_snap_ptr_,mode_state_,test);
+    // }
+    // else if(rc->s_l == 1 && rc->s_r == 1) {
+    //     mode_state_.current_state_ = E_LQR;
+    //     exe_lqr(robot_snap_ptr_,mode_state_,test);
+    // }
+    // else {
+    //     mode_state_.current_state_ = E_WAITING;
+    //     motor_rest();
+    // }
+    //
+    // auto snap = robot_snap_ptr_->current_snap_get()->lqr_data;
+    // auto ls = controller_.lqr_controller->get_lqr_output(LQR::E_left);
+    // auto rs = controller_.lqr_controller->get_lqr_output(LQR::E_right);
+    // auto ld = controller_.lqr_controller->get_dynamic(LQR::E_left);
+    // auto rd = controller_.lqr_controller->get_dynamic(LQR::E_right);
 }
 
 void app_coordinate::motor_tor_update(){
@@ -356,10 +387,10 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
        mode_state_.reduce_cnt -= 1;
 
     LQR_target_data.dot_S = ctrl.speed;
-    LQR_target_data.phi += ctrl.gryo/1000.0f;
+    LQR_target_data.phi += ctrl.gry/1000.0f;
 
     LQR_target_data.phi > PI? LQR_target_data.phi -= 2*PI:(LQR_target_data.phi < -PI? LQR_target_data.phi += 2*PI:0);
-    LQR_target_data.dot_phi = ctrl.gryo;
+    LQR_target_data.dot_phi = ctrl.gry;
 
     float32_t delta[10];
     delta[0] =  LQR_target_data.S       - (p->lqr_data.S                -zero_p->lqr_data.S              );
@@ -394,10 +425,10 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
     robot_ctrl->right_vmc_pkg.leg_tor = right.body_balance+right.body_move;
 
     robot_ctrl->vmc->tor_clc(robot_ctrl->left_vmc_pkg,p->left_leg,VMC::E_Left);
-    robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg,VMC::E_Right);
+    robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg, VMC::E_Right);
 
     //更新到目标输出中
-    auto answer = robot_ctrl->vmc->tor_get();
+    auto answer                 = robot_ctrl->vmc->tor_get();
     motor_output_.tor_j1 = answer.p_right_tor2 + answer.c_right_tor2;
     motor_output_.tor_j2 = answer.p_right_tor1 + answer.c_right_tor1;
     motor_output_.tor_j3 = answer.p_left_tor1 + answer.c_left_tor1;
@@ -408,13 +439,42 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
     bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f\r\n",delta[0],delta[1],(float)mode_state_.reduce_cnt,mode_state_.delta_S);
 }
 
-mode_state_struct app_coordinate::mode_reset(){
-    mode_state_struct temp = {
-        .extern_cmd_ = CMD_EXECUTING,
-        .inner_cmd_ = CMD_EXECUTING,
-        .current_state_ = E_WAITING
-    };
-    return temp;
+//土狗模式部分
+void app_coordinate::exe_dog(snap *robot_snap, mode_state_struct state, ctrl_struct ctrl){
+    if(state.last_state != E_DOG && state.current_state_ == E_DOG) {
+        controller_.dog_ctrl->clear();
+    }
+    auto p = robot_snap->current_snap_get();
+    //分解合成目标速度
+    //当角度误差较小的时候进行（小于30°）的时候进行cos计算
+
+    //step1: 计算目标速度角度和大小
+    float ver = sqrtf(ctrl.ver_x*ctrl.ver_x + ctrl.ver_y*ctrl.ver_y);
+    float deg = atan2(ctrl.ver_y,ctrl.ver_x);
+
+    //step2: 更新数据
+    if(abs(deg - p->robot_raw_data.body_phi) < PI/6) {
+        controller_.dog_ctrl->speed_update(ver*cos(deg - p->robot_raw_data.body_phi),
+            p->robot_raw_data.speed_left,p->robot_raw_data.speed_right,
+            p->robot_raw_data.body_phi,p->robot_raw_data.dot_phi);
+    }
+    else {
+        controller_.dog_ctrl->speed_update(0,
+            p->robot_raw_data.speed_left,p->robot_raw_data.speed_right,
+            p->robot_raw_data.body_phi,p->robot_raw_data.dot_phi);
+    }
+    //更新腿部控制
+
+    //step3: 拉取数据并且输出
+    motor_output_.tor_j1 = 0;
+    motor_output_.tor_j2 = 0;
+    motor_output_.tor_j3 = 0;
+    motor_output_.tor_j4 = 0;
+
+    auto output = controller_.dog_ctrl->output_get();
+    motor_output_.dynamic_left = output.first;
+    motor_output_.dynamic_right = output.second;
+
 }
 
 mode_state_struct app_coordinate::mode_ptr_search(){
@@ -432,7 +492,7 @@ mode_state_struct app_coordinate::mode_ptr_search(){
     temp = mode_state_;
     for(auto & i : move_map) {
         if(temp.current_state_ == i.current_state &&
-            (temp.inner_cmd_ == i.switch_cmd || temp.extern_cmd_ == i.switch_cmd)) {
+           (temp.inner_cmd_ == i.switch_cmd || temp.extern_cmd_ == i.switch_cmd)) {
             temp.current_state_ = i.next_state;
             return temp;
         }
@@ -453,4 +513,9 @@ std::pair<float32_t, float32_t> app_coordinate::roll_feed(float32_t roll_rad, fl
     target.first = (2*target_height - RL*tanf(beta_deg))/2;
     target.second = (2*target_height + RL*tanf(beta_deg))/2;
     return  target;
+}
+
+void app_coordinate::ibc_send_update(float vector_x, float vector_y,
+    float vector_z, mode_state mode){
+
 }
