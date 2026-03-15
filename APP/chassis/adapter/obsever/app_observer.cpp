@@ -5,6 +5,7 @@
 #include "app_observer.h"
 
 #include "bsp_uart.h"
+#include "robot_data.h"
 using namespace Relay;
 void StateMapping::update() {
     ins_->update();

@@ -40,6 +40,9 @@ void Coordinate::snap::snap_update() {
     raw->body_theta = observer_.ins->get_pos()->body_theta;
     raw->body_phi = observer_.ins->get_pos()->body_phi;
     raw->body_roll = observer_.ins->get_pos()->body_roll;
+    raw->dot_theta = observer_.ins->get_pos()->body_theta_gry;
+    raw->dot_phi = observer_.ins->get_pos()->body_phi_gry;
+    raw->dot_roll = observer_.ins->get_pos()->body_roll_gry;
 
     current_snap_.state_flag |= SNAP_START;
 

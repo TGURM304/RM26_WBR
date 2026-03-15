@@ -3,6 +3,8 @@
 //
 
 #include "app_WRB_ins.h"
+
+#include "robot_data.h"
 void INS::app_WRB_ins::update() {
     posture_.body_phi      = ins_->yaw/ 180.f * PI_F32;
     posture_.body_phi_gry  = ins_->raw.gyro[2];

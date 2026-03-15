@@ -13,7 +13,6 @@
  * 记为：roll，phi，theta
  */
 namespace INS{
-    #define PI_F32 3.14159265f
     typedef struct {
         float body_theta, body_phi, body_roll;
         float body_theta_gry,body_phi_gry,body_roll_gry;

@@ -4,6 +4,8 @@
 
 #include "app_motor_pkg.h"
 
+#include "robot_data.h"
+
 #include <fast_math_functions.h>
 
 void Motor_Pkg::Joint::set_tor(float tor) {
@@ -39,11 +41,7 @@ void Motor_Pkg::Dynamic::pkg_init() {
  * 转子转速单位：RPM
  * 电流： -20A~20A  -16384~16384
  */
-#define REDUCTION_ORG (3591.0f/187.0f)
-#define REDUCTION_NOW (268.0f/17.0f)
-#define TORQUE_CONST (0.3f)
-#define PI_F32 (3.1415926f)
-#define M3508_LIMIT (20.0f)
+
 void Motor_Pkg::Dynamic::set_tor(float tor) {
     float temp_tor = tor*dir_;
     // float current = temp_tor/(REDUCTION_NOW/REDUCTION_ORG*TORQUE_CONST);

@@ -28,6 +28,9 @@ namespace Relay {
         float pitch;
         float yaw;
     }body_angle_;
+    typedef struct {
+        float left_speed, right_speed;
+    }dog_data;//土狗模式运行下需要的数据
     class message_adapter {
     public:
         message_adapter() = default;
