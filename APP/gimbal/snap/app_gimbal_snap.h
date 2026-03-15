@@ -7,6 +7,7 @@
 #include "app_ins.h"
 #include "dev_motor_dji.h"
 #include "dev_motor_dm.h"
+#include "app_ibc.h"
 
 #define PITCH_ZERO_POINT 1.12f
 #define PIT_LIMIT_MAX 1.5
@@ -34,10 +35,15 @@ public:
         float yaw_zero_point)
     : yaw_ptr_(yaw_ptr), pitch_ptr_(pitch_ptr), ins_(ins),
         pitch_zero_point_(pitch_zero_point), yaw_zero_point_(yaw_zero_point),
-        trigger_ptr_(trigger_ptr),fric_left_ptr_(fric_left_ptr),fric_right_ptr_(fric_right_ptr) {}
+        trigger_ptr_(trigger_ptr),fric_left_ptr_(fric_left_ptr),
+        fric_right_ptr_(fric_right_ptr), ibc_chassis(E_CAN3,CHASSIS_ID) {
+    }
     void snap_update();
     snap_pkg get_snap_pkg();
     void snap_clear();
+    void snap_init() {
+        ibc_chassis.init();
+    }
     [[nodiscard]] float get_yaw_zero() const;
     [[nodiscard]] float get_pitch_zero() const;
 private:
@@ -49,6 +55,9 @@ private:
     Motor::DJIMotor *fric_left_ptr_ = nullptr;
     Motor::DJIMotor *fric_right_ptr_ = nullptr;
     const app_ins_data_t *ins_ = nullptr;
+    IBC::gimbal gimbal_send_ = {};
+    app_msg_can_receiver<IBC::chassis> ibc_chassis;
+
 };
 }
 
