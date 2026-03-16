@@ -21,7 +21,7 @@ public:
     float update(float target);
 
     void target_set(float current);
-    float update_limit(float target,float range);
+    float update_limit(float target);
     void param_set(float update_freq, float omega_n, float epsilon);
 private:
     float update_mod(float target);

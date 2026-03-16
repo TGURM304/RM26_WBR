@@ -44,12 +44,12 @@ void second_order::target_set(float current) {
 /**
  * @brief 处理轨迹规划中跳变问题，直接输入跟踪目标
  *
- * @note 目前仅支持+-range的对称的区域跳变处理
+ * @note 目前仅支持+-PI的对称的区域跳变处理
  */
-float second_order::update_limit(float target, float range) {
-    float delta   = fmodf(target - process_target_, 2 * range);
-    if(fabsf(delta) > range)
-        delta -= SGN(delta) * 2 * range;
+float second_order::update_limit(float target) {
+    float delta   = fmodf(target - process_target_, 2 * PI_F32);
+    if(fabsf(delta) > PI_F32)
+        delta -= SGN(delta) * 2 * PI_F32;
     process_target_ += delta;
     float out = this->update_mod(process_target_);
     return out;

@@ -44,8 +44,8 @@ Motor::DMMotor pit_motor("pit_motor",
                            .kp_max    = 500,
                            .kd_max    = 5 });
 
-Controller::PID yaw_pos(15, 0, 0, 15, 0);
-Controller::PID yaw_speed(1.5, 0.1 / 1000.0f, 0, 3, 0.2);
+Controller::PID yaw_pos(25, 0, 0, 15, 0);
+Controller::PID yaw_speed(2, 0.1 / 1000.0f, 0, 3, 0.2);
 
 Controller::PID fric_speed(10, 1, 0, 16384, 3000);
 Controller::PID trigger_speed(20, 0, 0, 16384, 10000);
@@ -92,7 +92,7 @@ void app_gimbal_task(void *args) {
             target_pitch  = pitch_path.update(raw_pit);
             raw_yaw -= ((float)(rc->rc_r[0])) / 640.0f * 0.01f;
             raw_yaw > PI_F32? raw_yaw -= 2*PI_F32:(raw_yaw < -PI_F32?raw_yaw+= 2*PI_F32:0);
-            target_yaw = yaw_path.update_limit(raw_yaw,PI_F32);
+            target_yaw = yaw_path.update_limit(raw_yaw);
             my_head.head_pid_clc(target_yaw, target_pitch);
             my_head.head_output();
         }
@@ -100,7 +100,7 @@ void app_gimbal_task(void *args) {
             if(vision_target.target_pitch != 0 || vision_target.target_yaw != 0) {
                 target_pitch = pitch_path.update(vision_target.target_pitch);
                 raw_yaw      = vision_target.target_yaw;
-                target_yaw = yaw_path.update_limit(raw_yaw,PI_F32);
+                target_yaw = yaw_path.update_limit(raw_yaw);
             }
             my_head.head_pid_clc(target_yaw, target_pitch);
             my_head.head_output();
@@ -130,10 +130,10 @@ void app_gimbal_task(void *args) {
         app_msg_vofa_send(E_UART_DEBUG, /* vision_target.target_pitch,*/
                           vision_target.target_yaw,
                           /*target_yaw, target_pitch,*/
-                          yaw_no_limit,
-                          target_yaw
+                          raw_yaw,
+                          target_yaw,
                           // robo_snap.get_snap_pkg().ins_pit,
-                          // robo_snap.get_snap_pkg().ins_yaw,
+                          robo_snap.get_snap_pkg().ins_yaw
                           // raw_yaw,target_yaw
         );
         OS::Task::SleepMilliseconds(1);
