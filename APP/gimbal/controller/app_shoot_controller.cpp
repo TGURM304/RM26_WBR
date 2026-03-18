@@ -17,14 +17,14 @@ void Gimbal::Shoot::shoot_update(fric_mode_e fric_mode, trigger_mode_e trigger_m
     else if(fric_mode == E_FRIC_SLOW)
         fric_target_speed_ = 2000;
     else if(fric_mode == E_FRIC_FAST)
-        fric_target_speed_ = 6000;
+        fric_target_speed_ = 7000;
 
     if(trigger_mode == E_TRIGGER_REST)
         trigger_out_ = trigger_target_speed_ = 0;
     else if(trigger_mode == E_TRIGGER_SLOW)
-        trigger_target_speed_ = -2000;
+        trigger_target_speed_ = -1000;
     else if(trigger_mode == E_TRIGGER_FAST)
-        trigger_target_speed_ = -5000;
+        trigger_target_speed_ = -1500;
 }
 
 void Gimbal::Shoot::shoot_tick() {

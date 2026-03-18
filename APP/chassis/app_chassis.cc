@@ -70,11 +70,9 @@ Relay::message_adapter adapter(&mapping);
 LegController::app_leg_ctrl leg_controller(
 {80,2.0/1000,0,30,10},
 {50,0,0,5,0},
-{3,2.0/1000.0f,0,12,8},
-{10,0,0,3,3});
-LegController::wheel_speed_controller dog_controller(
-    {.Kp = 10, .Ki = 1, .Kd = 0, .out_limit = 2.5, .iout_limit = 1.5},
-    {.Kp = 2, .Ki = 0, .Kd = 0, .out_limit = 2, .iout_limit = 1.5});
+{1,4.0/1000.0f,0.5,16,12},
+{10,0,0,5,3});
+LegController::wheel_speed_controller dog_controller({.Kp = 2.5, .Ki = 0.05, .Kd = 0, .out_limit = 2.5, .iout_limit = 0.5});
 
 VMC::app_vmc vmc;
 LQR::LQR_controller lqr_controller((float32_t *)K,(float32_t *)K_Fit_Coefficients);
@@ -115,6 +113,19 @@ void app_chassis_task(void *args) {
 	while(true) {
 
         my_coordinate.test_function(rc);
+
+        // TODO: 他妈的为什么没有任何地方调用 dog controller 的 tick
+	    dog_controller.tick();
+
+	    auto p = my_snap.current_snap_get();
+	    // app_msg_vofa_send(E_UART_DEBUG,
+	    //     p->left_leg.theta,
+	    //     p->left_leg.dot_theta,
+	    //     p->right_leg.theta,
+	    //     p->right_leg.dot_theta);
+
+	    app_msg_vofa_send(E_UART_DEBUG, rc->s_l, p->robot_raw_data.speed_left, p->robot_raw_data.speed_right);
+
 
      //    my_ins.update();
 	    // auto p =my_ins.get_pos();

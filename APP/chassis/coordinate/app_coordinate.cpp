@@ -81,12 +81,7 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
     //     mode_state_.current_state_ = E_WAITING;
     //     motor_rest();
     // }
-    //
-    // auto snap = robot_snap_ptr_->current_snap_get()->lqr_data;
-    // auto ls = controller_.lqr_controller->get_lqr_output(LQR::E_left);
-    // auto rs = controller_.lqr_controller->get_lqr_output(LQR::E_right);
-    // auto ld = controller_.lqr_controller->get_dynamic(LQR::E_left);
-    // auto rd = controller_.lqr_controller->get_dynamic(LQR::E_right);
+    // motor_tor_update();
 }
 
 void app_coordinate::motor_tor_update(){
@@ -441,28 +436,31 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
 
 //土狗模式部分
 void app_coordinate::exe_dog(snap *robot_snap, mode_state_struct state, ctrl_struct ctrl){
-    if(state.last_state != E_DOG && state.current_state_ == E_DOG) {
-        controller_.dog_ctrl->clear();
-    }
+    // if(state.last_state != E_DOG && state.current_state_ == E_DOG) {
+    //     controller_.dog_ctrl->clear();
+    // }
     auto p = robot_snap->current_snap_get();
     //分解合成目标速度
     //当角度误差较小的时候进行（小于30°）的时候进行cos计算
 
     //step1: 计算目标速度角度和大小
-    float ver = sqrtf(ctrl.ver_x*ctrl.ver_x + ctrl.ver_y*ctrl.ver_y);
-    float deg = atan2(ctrl.ver_y,ctrl.ver_x);
+    float ver = ctrl.ver_y;
+    float gry = ctrl.gry;
+
+    controller_.dog_ctrl->speed_update(ver,gry,
+        p->robot_raw_data.speed_left,p->robot_raw_data.speed_right);
 
     //step2: 更新数据
-    if(abs(deg - p->robot_raw_data.body_phi) < PI/6) {
-        controller_.dog_ctrl->speed_update(ver*cos(deg - p->robot_raw_data.body_phi),
-            p->robot_raw_data.speed_left,p->robot_raw_data.speed_right,
-            p->robot_raw_data.body_phi,p->robot_raw_data.dot_phi);
-    }
-    else {
-        controller_.dog_ctrl->speed_update(0,
-            p->robot_raw_data.speed_left,p->robot_raw_data.speed_right,
-            p->robot_raw_data.body_phi,p->robot_raw_data.dot_phi);
-    }
+    // if(abs(deg - p->robot_raw_data.body_phi) < PI/6) {
+    //     controller_.dog_ctrl->speed_update(ver*cos(deg - p->robot_raw_data.body_phi),
+    //         p->robot_raw_data.speed_left,p->robot_raw_data.speed_right,
+    //         p->robot_raw_data.body_phi,p->robot_raw_data.dot_phi);
+    // }
+    // else {
+    //     controller_.dog_ctrl->speed_update(0,
+    //         p->robot_raw_data.speed_left,p->robot_raw_data.speed_right,
+    //         p->robot_raw_data.body_phi,p->robot_raw_data.dot_phi);
+    // }
     //更新腿部控制
 
     //step3: 拉取数据并且输出
@@ -474,7 +472,6 @@ void app_coordinate::exe_dog(snap *robot_snap, mode_state_struct state, ctrl_str
     auto output = controller_.dog_ctrl->output_get();
     motor_output_.dynamic_left = output.first;
     motor_output_.dynamic_right = output.second;
-
 }
 
 mode_state_struct app_coordinate::mode_ptr_search(){

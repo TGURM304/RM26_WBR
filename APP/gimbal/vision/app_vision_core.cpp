@@ -21,7 +21,7 @@ void Gimbal::vision_core::tick() {
 
     vision::send(pkg.ins_rol, pkg.ins_yaw, pkg.ins_yaw_dot,
         pkg.ins_pit, pkg.ins_pit_dot,
-        16    , 1);
+        17    , 1);
 }
 
 Gimbal::vision_pkg Gimbal::vision_core::get_target() {

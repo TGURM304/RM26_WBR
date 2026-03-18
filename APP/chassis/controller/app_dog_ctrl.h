@@ -9,26 +9,23 @@
 
 namespace LegController {
     class wheel_speed_controller {
+        //控制机体旋转角速度和前进速度
     public:
         wheel_speed_controller() = default;
-         explicit wheel_speed_controller(const Controller::PID::pid_param_t &wheel_speed,
-             const Controller::PID::pid_param_t &body_pos)
-            :left_speed_pid(wheel_speed), right_speed_pid(wheel_speed)
-            ,body_pos_pid(body_pos){
+        explicit wheel_speed_controller(const Controller::PID::pid_param_t &wheel_speed)
+            :left_speed_pid(wheel_speed), right_speed_pid(wheel_speed) {
         }
-        void speed_update(float target_forward,
-            float left_current_speed, float right_current_speed,
-            float body_current_pos, float body_current_gry);// forward:前进，单位m/s, spin:自转，单位rad/s
+        void speed_update(float target_forward, float target_body_gry,
+            float left_current_speed, float right_current_speed);// forward:前进，单位m/s, spin:自转，单位rad/s
         void clear();
         void tick();
         [[nodiscard]] std::pair<float,float> output_get() const;
     private:
         Controller::PID left_speed_pid;
         Controller::PID right_speed_pid;
-        Controller::PID body_pos_pid;
         float right_out_tor = 0, left_out_tor = 0;
-        float body_current_pos_ = 0, left_current_speed_ = 0, right_current_speed_ = 0;
-        float  forward_speed_ = 0, target_deg_ = 0;
+        float left_current_speed_ = 0, right_current_speed_ = 0;
+        float target_forward_speed_ = 0, target_body_gry_ = 0;
     };
 }
 

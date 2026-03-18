@@ -58,7 +58,9 @@ namespace Coordinate {
         void test_function(const bsp_rc_data_t *rc);
         void reset();
         void inner_cmd_update();
-    private:
+        snap *robot_snap_ptr_ = nullptr;
+
+    // private:
 
         void exe_any                (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
         void exe_waiting            (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
@@ -79,7 +81,6 @@ namespace Coordinate {
         static std::pair<float32_t,float32_t> roll_feed(float32_t roll_rad, float32_t left_r, float32_t right_r, float32_t target_height);
         mode_state_struct mode_ptr_search();
         using BehaviorFunc = void (app_coordinate::*)(snap*,mode_state_struct,ctrl_struct);
-        snap *robot_snap_ptr_ = nullptr;
 
         static constexpr BehaviorFunc behavior_table_[E_MODE_CNT] = {
             &app_coordinate::exe_any,
