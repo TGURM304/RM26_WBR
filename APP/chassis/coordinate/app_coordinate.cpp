@@ -40,53 +40,53 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
 
     tick();
 
+    // mode_state_.last_state = mode_state_.current_state_;
+    // ctrl_struct test = {};
+    // test.ver_x = (rc->rc_l[1]*1.0f)/660.0f;
+    // test.ver_y = -(rc->rc_l[0]*1.0f)/660.0f;
+    //
+    // if(rc->s_l == 1) {
+    //     mode_state_.current_state_ = E_DOG;
+    //     exe_dog(robot_snap_ptr_,mode_state_,test);
+    // }
+    // else {
+    //     mode_state_.current_state_ = E_WAITING;
+    //     motor_rest();
+    // }
+
+    robot_snap_ptr_->snap_update();
     mode_state_.last_state = mode_state_.current_state_;
     ctrl_struct test = {};
-    test.ver_x = (rc->rc_l[1]*1.0f)/660.0f;
-    test.ver_y = -(rc->rc_l[0]*1.0f)/660.0f;
+    test.speed = (rc->rc_r[1]*1.0f)/660.0f;
+    test.gry = -(rc->reserved*1.0f)/660.0f;
+    test.body_height = (rc->rc_l[1]*1.0f)/660.0f/5.0f;
 
-    if(rc->s_l == 1) {
-        mode_state_.current_state_ = E_DOG;
-        exe_dog(robot_snap_ptr_,mode_state_,test);
+    if(rc->s_l == 0 && rc->s_r == -1) {
+        mode_state_.current_state_ = E_PUT_BODY;
+        exe_put_body(robot_snap_ptr_,mode_state_,test);
+    }
+    else if(rc->s_l == 1 && rc->s_r == -1) {
+        mode_state_.current_state_ = E_PUT_LEG;
+        exe_put_leg(robot_snap_ptr_,mode_state_,test);
+    }
+    else if(rc->s_l == 1 && rc->s_r == 0) {
+        mode_state_.current_state_ = E_CHAIR;
+        exe_chair(robot_snap_ptr_,mode_state_,test);
+    }
+    else if(rc->s_l == 1 && rc->s_r == 1) {
+        mode_state_.current_state_ = E_LQR;
+        exe_lqr(robot_snap_ptr_,mode_state_,test);
     }
     else {
         mode_state_.current_state_ = E_WAITING;
         motor_rest();
     }
 
-    // robot_snap_ptr_->snap_update();
-    // mode_state_.last_state = mode_state_.current_state_;
-    // ctrl_struct test = {};
-    // test.speed = (rc->rc_r[1]*1.0f)/660.0f;
-    // test.gry = -(rc->reserved*1.0f)/660.0f;
-    // test.body_height = (rc->rc_l[1]*1.0f)/660.0f/5.0f;
-    //
-    // if(rc->s_l == 0 && rc->s_r == -1) {
-    //     mode_state_.current_state_ = E_PUT_BODY;
-    //     exe_put_body(robot_snap_ptr_,mode_state_,test);
-    // }
-    // else if(rc->s_l == 1 && rc->s_r == -1) {
-    //     mode_state_.current_state_ = E_PUT_LEG;
-    //     exe_put_leg(robot_snap_ptr_,mode_state_,test);
-    // }
-    // else if(rc->s_l == 1 && rc->s_r == 0) {
-    //     mode_state_.current_state_ = E_CHAIR;
-    //     exe_chair(robot_snap_ptr_,mode_state_,test);
-    // }
-    // else if(rc->s_l == 1 && rc->s_r == 1) {
-    //     mode_state_.current_state_ = E_LQR;
-    //     exe_lqr(robot_snap_ptr_,mode_state_,test);
-    // }
-    // else {
-    //     mode_state_.current_state_ = E_WAITING;
-    //     motor_rest();
-    // }
-    //
-    // auto snap = robot_snap_ptr_->current_snap_get()->lqr_data;
-    // auto ls = controller_.lqr_controller->get_lqr_output(LQR::E_left);
-    // auto rs = controller_.lqr_controller->get_lqr_output(LQR::E_right);
-    // auto ld = controller_.lqr_controller->get_dynamic(LQR::E_left);
-    // auto rd = controller_.lqr_controller->get_dynamic(LQR::E_right);
+    auto snap = robot_snap_ptr_->current_snap_get()->lqr_data;
+    auto ls = controller_.lqr_controller->get_lqr_output(LQR::E_left);
+    auto rs = controller_.lqr_controller->get_lqr_output(LQR::E_right);
+    auto ld = controller_.lqr_controller->get_dynamic(LQR::E_left);
+    auto rd = controller_.lqr_controller->get_dynamic(LQR::E_right);
 }
 
 void app_coordinate::motor_tor_update(){
@@ -366,25 +366,27 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
     //以下为衰减保护相关代码
     //衰减系数可以调节，公式为：k=h^(1/n)，n为衰减次数，k为每次衰减系数，h为最终衰减到的值，也就是说经过n次迭代后衰减到h的值
     //此处我们取h = 0.3， n = 300， k= 0.996
-    if(mode_state_.reduce_cnt >= REDUCE_EDGE_DOWN) {
-        mode_state_.delta_S *= 0.996f;
-        LQR_target_data.S = mode_state_.delta_S + (p->lqr_data.S -zero_p->lqr_data.S);
-    }
-    else {
-        mode_state_.delta_S = LQR_target_data.S - (p->lqr_data.S -zero_p->lqr_data.S);
-        LQR_target_data.S += ctrl.speed/1000.0f;
-    }
-    if( abs(ctrl.speed) >= 3.0f ||
-        abs(mode_state_.delta_S) > DELTA_S_EDGE ||
-        abs(LQR_target_data.dot_S - (p->lqr_data.dot_S-zero_p->lqr_data.dot_S)) > DELTA_VER_EDGE
-        ) {
-        if(mode_state_.reduce_cnt < REDUCE_EDGE_UP) {
-        mode_state_.reduce_cnt += 10;
-        }
-    }
-    else if(abs(LQR_target_data.dot_S - (p->lqr_data.dot_S - zero_p->lqr_data.dot_S)) < 0.5f
-         && mode_state_.reduce_cnt > 0)
-       mode_state_.reduce_cnt -= 1;
+    // if(mode_state_.reduce_cnt >= REDUCE_EDGE_DOWN) {
+    //     mode_state_.delta_S *= 0.996f;
+    //     LQR_target_data.S = mode_state_.delta_S + (p->lqr_data.S -zero_p->lqr_data.S);
+    // }
+    // else {
+    //     mode_state_.delta_S = LQR_target_data.S - (p->lqr_data.S -zero_p->lqr_data.S);
+    //     LQR_target_data.S += ctrl.speed/1000.0f;
+    // }
+    // if( abs(ctrl.speed) >= 3.0f ||
+    //     abs(mode_state_.delta_S) > DELTA_S_EDGE ||
+    //     abs(LQR_target_data.dot_S - (p->lqr_data.dot_S-zero_p->lqr_data.dot_S)) > DELTA_VER_EDGE
+    //     ) {
+    //     if(mode_state_.reduce_cnt < REDUCE_EDGE_UP) {
+    //     mode_state_.reduce_cnt += 10;
+    //     }
+    // }
+    // else if(abs(LQR_target_data.dot_S - (p->lqr_data.dot_S - zero_p->lqr_data.dot_S)) < 0.5f
+    //      && mode_state_.reduce_cnt > 0)
+    //    mode_state_.reduce_cnt -= 1;
+
+    LQR_target_data.S += ctrl.speed/1000.0f;
 
     LQR_target_data.dot_S = ctrl.speed;
     LQR_target_data.phi += ctrl.gry/1000.0f;

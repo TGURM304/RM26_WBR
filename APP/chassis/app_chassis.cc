@@ -26,27 +26,28 @@ Motor_Pkg::Joint joint1("join1",Motor::DMMotor::J8009P,{
   .port = E_CAN2,
   .mode = Motor::DMMotor::MIT,
   .p_max = 3.141593, .v_max = 45, .t_max = 30, .kp_max = 12.5, .kd_max = 5
-},Motor_Pkg::E_backward,0);
+},Motor_Pkg::E_backward,-PI_F32/2);
 Motor_Pkg::Joint joint2("join2",Motor::DMMotor::J8009P,{
     .slave_id = 0x12,
     .master_id = 0x02,
     .port = E_CAN2,
     .mode = Motor::DMMotor::MIT,
     .p_max = 3.141593, .v_max = 45, .t_max = 30, .kp_max = 12.5, .kd_max = 5
-},Motor_Pkg::E_backward,PI_F32/2);Motor_Pkg::Joint joint3("join3",Motor::DMMotor::J8009P,{
+},Motor_Pkg::E_backward,0)
+;Motor_Pkg::Joint joint3("join3",Motor::DMMotor::J8009P,{
     .slave_id = 0x13,
     .master_id = 0x03,
     .port = E_CAN2,
     .mode = Motor::DMMotor::MIT,
     .p_max = 3.141593, .v_max = 45, .t_max = 30, .kp_max = 12.5, .kd_max = 5
-},Motor_Pkg::E_forward,PI_F32/2);
+},Motor_Pkg::E_forward,0);
 Motor_Pkg::Joint joint4("join4",Motor::DMMotor::J8009P,{
     .slave_id = 0x14,
     .master_id = 0x04,
     .port = E_CAN2,
     .mode = Motor::DMMotor::MIT,
     .p_max = 3.141593, .v_max = 45, .t_max = 30, .kp_max = 12.5, .kd_max = 5
-},Motor_Pkg::E_forward,0);
+},Motor_Pkg::E_forward,-PI_F32/2);
 Motor_Pkg::Dynamic right_dynamic("right_dynamic",Motor::DJIMotor::M3508,{
     .id = 1,
     .port = E_CAN1,
