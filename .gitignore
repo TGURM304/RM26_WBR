@@ -9,3 +9,5 @@ Core
 .mxproject
 .idea
 CMakeLists.txt
+
+*.mat
