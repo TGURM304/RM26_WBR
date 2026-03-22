@@ -81,9 +81,9 @@ void StateMapping::leg_clc(float theta_big, float theta_small,leg_switch leg){
     }
     else if(leg == E_RIGHT) {
         right_theta_dot_filter_.input(leg_ptr->theta - leg_ptr->old_theta);
-        leg_ptr->dot2_theta = right_theta_dot_filter_.get()*1000;
+        leg_ptr->dot_theta = right_theta_dot_filter_.get()*1000;
         right_theta_dot2_filter_.input(leg_ptr->dot_theta-leg_ptr->old_dot_theta);
-        leg_ptr->old_dot_theta = right_theta_dot2_filter_.get()*1000;
+        leg_ptr->dot2_theta = right_theta_dot2_filter_.get()*1000;
 
         right_L0_dot_filter_.input(leg_ptr->L0 - leg_ptr->old_L0);
         leg_ptr->dot_L0 = right_L0_dot_filter_.get()*1000;
