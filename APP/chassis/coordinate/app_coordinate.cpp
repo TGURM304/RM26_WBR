@@ -40,48 +40,48 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
 
     tick();
 
+    // mode_state_.last_state = mode_state_.current_state_;
+    // ctrl_struct test = {};
+    // test.ver_x = (rc->rc_l[1]*1.0f)/660.0f;
+    // test.ver_y = -(rc->rc_l[0]*1.0f)/660.0f;
+    //
+    // if(rc->s_l == 1) {
+    //     mode_state_.current_state_ = E_DOG;
+    //     exe_dog(robot_snap_ptr_,mode_state_,test);
+    // }
+    // else {
+    //     mode_state_.current_state_ = E_WAITING;
+    //     motor_rest();
+    // }
+
+    robot_snap_ptr_->snap_update();
     mode_state_.last_state = mode_state_.current_state_;
     ctrl_struct test = {};
-    test.ver_x = (rc->rc_l[1]*1.0f)/660.0f;
-    test.ver_y = -(rc->rc_l[0]*1.0f)/660.0f;
+    test.speed = (rc->rc_r[1]*1.0f)/660.0f;
+    test.gry = -(rc->reserved*1.0f)/660.0f;
+    test.body_height = (rc->rc_l[1]*1.0f)/660.0f/5.0f;
 
-    if(rc->s_l == 1) {
-        mode_state_.current_state_ = E_DOG;
-        exe_dog(robot_snap_ptr_,mode_state_,test);
+    if(rc->s_l == 0 && rc->s_r == -1) {
+        mode_state_.current_state_ = E_PUT_BODY;
+        exe_put_body(robot_snap_ptr_,mode_state_,test);
+    }
+    else if(rc->s_l == 1 && rc->s_r == -1) {
+        mode_state_.current_state_ = E_PUT_LEG;
+        exe_put_leg(robot_snap_ptr_,mode_state_,test);
+    }
+    else if(rc->s_l == 1 && rc->s_r == 0) {
+        mode_state_.current_state_ = E_CHAIR;
+        exe_chair(robot_snap_ptr_,mode_state_,test);
+    }
+    else if(rc->s_l == 1 && rc->s_r == 1) {
+        mode_state_.current_state_ = E_LQR;
+        exe_lqr(robot_snap_ptr_,mode_state_,test);
     }
     else {
         mode_state_.current_state_ = E_WAITING;
         motor_rest();
     }
 
-    // robot_snap_ptr_->snap_update();
-    // mode_state_.last_state = mode_state_.current_state_;
-    // ctrl_struct test = {};
-    // test.speed = (rc->rc_r[1]*1.0f)/660.0f;
-    // test.gry = -(rc->reserved*1.0f)/660.0f;
-    // test.body_height = (rc->rc_l[1]*1.0f)/660.0f/5.0f;
-    //
-    // if(rc->s_l == 0 && rc->s_r == -1) {
-    //     mode_state_.current_state_ = E_PUT_BODY;
-    //     exe_put_body(robot_snap_ptr_,mode_state_,test);
-    // }
-    // else if(rc->s_l == 1 && rc->s_r == -1) {
-    //     mode_state_.current_state_ = E_PUT_LEG;
-    //     exe_put_leg(robot_snap_ptr_,mode_state_,test);
-    // }
-    // else if(rc->s_l == 1 && rc->s_r == 0) {
-    //     mode_state_.current_state_ = E_CHAIR;
-    //     exe_chair(robot_snap_ptr_,mode_state_,test);
-    // }
-    // else if(rc->s_l == 1 && rc->s_r == 1) {
-    //     mode_state_.current_state_ = E_LQR;
-    //     exe_lqr(robot_snap_ptr_,mode_state_,test);
-    // }
-    // else {
-    //     mode_state_.current_state_ = E_WAITING;
-    //     motor_rest();
-    // }
-    //
     // auto snap = robot_snap_ptr_->current_snap_get()->lqr_data;
     // auto ls = controller_.lqr_controller->get_lqr_output(LQR::E_left);
     // auto rs = controller_.lqr_controller->get_lqr_output(LQR::E_right);
@@ -335,7 +335,7 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
 
          mode_state_.reduce_cnt = 0;
          mode_state_.delta_S = 0;
-         mode_state_.height_record = 0.18f;
+         mode_state_.height_record = 0.20f;
 
          robot_snap->snap_clear_S();
          robot_snap->snap_set_zero();
@@ -410,15 +410,15 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
     delta[8] =  0                       - (p->lqr_data.body_theta      );
     delta[9] =  0                       - (p->lqr_data.body_dot_theta  );
 
-    controller_.lqr_controller->static_clc(delta);
+    controller_.lqr_controller->fit_clc(delta,p->left_leg.L0,p->right_leg.L0);
 
     auto robot_ctrl = &controller_;
     auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
     auto right = controller_.lqr_controller->get_lqr_output(LQR::E_right);
 
-    robot_ctrl->left_vmc_pkg.force_y = 50;
+    robot_ctrl->left_vmc_pkg.force_y = 70;
     robot_ctrl->left_vmc_pkg.force_x = 0;
-    robot_ctrl->right_vmc_pkg.force_y = 50;
+    robot_ctrl->right_vmc_pkg.force_y = 70;
     robot_ctrl->right_vmc_pkg.force_x = 0;
 
     robot_ctrl->left_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_left;
@@ -438,7 +438,6 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
 
     motor_output_.dynamic_left = left.wheel_balance + left.wheel_move;
     motor_output_.dynamic_right = right.wheel_balance + right.wheel_move;
-    bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f\r\n",delta[0],delta[1],(float)mode_state_.reduce_cnt,mode_state_.delta_S);
 }
 
 //土狗模式部分
@@ -456,7 +455,6 @@ void app_coordinate::exe_dog(snap *robot_snap, mode_state_struct state, ctrl_str
 
     controller_.dog_ctrl->speed_update(ver,gry,
         p->robot_raw_data.speed_left,p->robot_raw_data.speed_right);
-
     //step2: 更新数据
     // if(abs(deg - p->robot_raw_data.body_phi) < PI/6) {
     //     controller_.dog_ctrl->speed_update(ver*cos(deg - p->robot_raw_data.body_phi),

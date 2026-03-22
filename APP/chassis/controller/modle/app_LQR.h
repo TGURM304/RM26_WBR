@@ -36,6 +36,13 @@ public:
     }
     void static_clc(float32_t *delta_state);
     void dynamic_clc(float32_t *delta_state, Relay::relay_leg left_leg, Relay::relay_leg right_leg);
+    /**
+     *
+     * @brief 这里面会直接调用const_data.h中的拟合系数，我知道这很狗屎，但是就先这么用着
+     * @param left_leg 左腿观测器
+     * @param right_leg 右腿观测器
+     */
+    void fit_clc(float32_t *delta_state, float left_len, float right_len);
     lqr_output get_lqr_output(leg_switch leg) {
         if(leg == E_left) {return left_output_;}
         else { return right_output_;}

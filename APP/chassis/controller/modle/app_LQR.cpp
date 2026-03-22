@@ -4,6 +4,8 @@
 
 #include "app_LQR.h"
 
+#include "lqr_matrix.h"
+
 using namespace LQR;
 
 void LQR_controller::static_clc(float32_t *delta_state) {
@@ -93,4 +95,81 @@ void LQR_controller::dynamic_clc(float32_t *delta_state, Relay::relay_leg left_l
                             +delta_state[6]*dynamic_K_[3][6]+delta_state[7]*dynamic_K_[3][7]
                             +delta_state[8]*dynamic_K_[3][8]+delta_state[9]*dynamic_K_[3][9]);
 
+}
+
+void LQR_controller::fit_clc(float32_t *delta_state, float left_len, float right_len) {
+    float avr = (left_len + right_len) / 2.0f;
+    float len_down = -1, len_up = -1;
+    int cnt = 0;
+    for(cnt = 0; cnt < 5; cnt++) {
+        if(leg_len_arr[cnt] < avr)
+            len_down = leg_len_arr[cnt];
+        else if(leg_len_arr[cnt] >= avr) {
+            len_up = leg_len_arr[cnt];
+            break;
+        }
+        else if(cnt == 4 && leg_len_arr[cnt] < avr) {
+            len_down = leg_len_arr[cnt];
+            break;
+        };
+    }
+    float temp_k[4][10] = {};
+    //三种情况，在最大，在最小，在中间，分别进行处理
+    if(len_down == -1) {
+        memcpy(temp_k,K17,sizeof(K17));
+    }
+    else if(len_up == -1) {
+        memcpy(temp_k,K34,sizeof(K34));
+    }
+    else if(len_down != len_up) {
+        float percent = (avr - len_down) / (len_up - len_down);
+        for(int i = 0; i < 4; i++) {
+            for(int j = 0; j < 10; j++) {
+                temp_k[i][j] = K_ary[cnt][i][j]*(1.0f - percent) + K_ary[cnt-1][i][j]*percent;
+            }
+        }
+
+    }
+    // if(len_down != len_up && len_down != -1) {
+    //     float percent = (avr - len_down) / (len_up - len_down);
+    //     for(int i = 0; i < 4; i++) {
+    //         for(int j = 0; j < 10; j++) {
+    //             temp_k[i][j] = K_ary[cnt][i][j]*(1.0f - percent) + K_ary[cnt-1][i][j]*percent;
+    //         }
+    //     }
+    // }
+    // else if(cnt == 0)
+    //     memcpy(temp_k,K17,sizeof(K17));
+    // else if(cnt == 5)
+    //     memcpy(temp_k,K34,sizeof(K34));
+
+    right_output_.body_move = -(
+                                +delta_state[0]*temp_k[0][0]+delta_state[1]*temp_k[0][1]
+                                +delta_state[2]*temp_k[0][2]+delta_state[3]*temp_k[0][3]);
+    right_output_.body_balance = -(
+                            +delta_state[4]*temp_k[0][4]+delta_state[5]*temp_k[0][5]
+                            +delta_state[6]*temp_k[0][6]+delta_state[7]*temp_k[0][7]
+                            +delta_state[8]*temp_k[0][8]+delta_state[9]*temp_k[0][9]);
+    right_output_.wheel_move = -(
+                                +delta_state[0]*temp_k[2][0]+delta_state[1]*temp_k[2][1]
+                                +delta_state[2]*temp_k[2][2]+delta_state[3]*temp_k[2][3]);
+    right_output_.wheel_balance = -(
+                            +delta_state[4]*temp_k[2][4]+delta_state[5]*temp_k[2][5]
+                            +delta_state[6]*temp_k[2][6]+delta_state[7]*temp_k[2][7]
+                            +delta_state[8]*temp_k[2][8]+delta_state[9]*temp_k[2][9]);
+
+    left_output_.body_move = -(
+                                +delta_state[0]*temp_k[1][0]+delta_state[1]*temp_k[1][1]
+                                +delta_state[2]*temp_k[1][2]+delta_state[3]*temp_k[1][3]);
+    left_output_.body_balance = -(
+                            +delta_state[4]*temp_k[1][4]+delta_state[5]*temp_k[1][5]
+                            +delta_state[6]*temp_k[1][6]+delta_state[7]*temp_k[1][7]
+                            +delta_state[8]*temp_k[1][8]+delta_state[9]*temp_k[1][9]);
+    left_output_.wheel_move = -(
+                                +delta_state[0]*temp_k[3][0]+delta_state[1]*temp_k[3][1]
+                                +delta_state[2]*temp_k[3][2]+delta_state[3]*temp_k[3][3]);
+    left_output_.wheel_balance = -(
+                            +delta_state[4]*temp_k[3][4]+delta_state[5]*temp_k[3][5]
+                            +delta_state[6]*temp_k[3][6]+delta_state[7]*temp_k[3][7]
+                            +delta_state[8]*temp_k[3][8]+delta_state[9]*temp_k[3][9]);
 }
