@@ -24,6 +24,7 @@ typedef struct {
     float dis_right, dis_left;
     float body_theta, body_phi, body_roll;
     float dot_theta, dot_phi, dot_roll;
+    float acc_x, acc_y, acc_z;
     float vector_x, vector_y, vector_z;//车体矢量三维数据
 }raw_data;
 typedef struct {
@@ -43,6 +44,7 @@ typedef struct {
         robot_snap* current_snap_get();
         robot_snap* last_snap_get();
         robot_snap* zero_snap_get();
+        observer_struct* observer_get() {return &observer_;}
         void snap_clear();
         void snap_set_zero();
         void snap_clear_S();

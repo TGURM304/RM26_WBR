@@ -76,7 +76,7 @@ LegController::app_leg_ctrl leg_controller(
 LegController::wheel_speed_controller dog_controller({.Kp = 2.5, .Ki = 0.05, .Kd = 0, .out_limit = 2.5, .iout_limit = 0.5});
 
 VMC::app_vmc vmc;
-LQR::LQR_controller lqr_controller((float32_t *)K,(float32_t *)K_Fit_Coefficients);
+LQR::LQR_controller lqr_controller((float32_t *)K17,(float32_t *)K_Fit_Coefficients);
 Coordinate::observer_struct my_observer = {
 .my_adapter_ = &adapter,
 .J1 = &joint1,
@@ -114,25 +114,6 @@ void app_chassis_task(void *args) {
 	while(true) {
 
         my_coordinate.test_function(rc);
-
-        // TODO: 他妈的为什么没有任何地方调用 dog controller 的 tick
-	    dog_controller.tick();
-
-	    auto p = my_snap.current_snap_get();
-	    // app_msg_vofa_send(E_UART_DEBUG,
-	    //     p->left_leg.theta,
-	    //     p->left_leg.dot_theta,
-	    //     p->right_leg.theta,
-	    //     p->right_leg.dot_theta);
-
-	    app_msg_vofa_send(E_UART_DEBUG, rc->s_l, p->robot_raw_data.speed_left, p->robot_raw_data.speed_right);
-
-
-     //    my_ins.update();
-	    // auto p =my_ins.get_pos();
-	    // bsp_uart_printf(E_UART_DEBUG,"%f,%f,%f,%f,%f,%f\r\n",
-	    //     p->vector_x,p->vector_y,p->vector_z,
-	    //     p->body_roll,p->body_theta,p->body_phi);
 
 	    OS::Task::SleepMilliseconds(1);
 	}

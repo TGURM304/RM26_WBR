@@ -38,6 +38,7 @@ void Relay::message_adapter::update() {
     left_leg_status_.dot_theta = leg.dot_theta;
     left_leg_status_.theta_1 = leg.theta_1;
     left_leg_status_.theta_2 = leg.theta_2;
+
     leg = mapping_->get_leg_status(Relay::E_RIGHT);
     right_leg_status_.L0 = leg.L0;
     right_leg_status_.dot_L0 = leg.dot_L0;

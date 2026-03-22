@@ -58,7 +58,9 @@ void StateMapping::leg_clc(float theta_big, float theta_small,leg_switch leg){
     kate_gama = acosf((2*KATE_B*KATE_B-kate_c2)/(2*KATE_B*KATE_B));
     theta2 = -(kate_alpha+kate_gama)/2;
 
+    leg_ptr->old_dot_L0 = leg_ptr->dot_L0;
     leg_ptr->old_L0 = leg_ptr->L0;
+    leg_ptr->old_dot_theta = leg_ptr->dot_theta;
     leg_ptr->old_theta = leg_ptr->theta;
     leg_ptr->pos_x = L1*cosf(theta1)+L2*cosf(theta1+theta2);
     leg_ptr->pos_y = L1*sinf(theta1)+L2*sinf(theta1+theta2);
@@ -67,16 +69,26 @@ void StateMapping::leg_clc(float theta_big, float theta_small,leg_switch leg){
     leg_ptr->theta_1 = theta1;
     leg_ptr->theta_2 = theta2;
     if(leg == E_LEFT) {
-        left_filter_.input(leg_ptr->theta - leg_ptr->old_theta);
-        leg_ptr->dot_theta = left_filter_.get()*1000;
-        left_L0_filter_.input(leg_ptr->L0 - leg_ptr->old_L0);
-        leg_ptr->dot_L0 = left_L0_filter_.get()*1000;
+        left_theta_dot_filter_.input(leg_ptr->theta - leg_ptr->old_theta);
+        leg_ptr->dot_theta = left_theta_dot_filter_.get()*1000;
+        left_theta_dot2_filter_.input(leg_ptr->dot_theta - leg_ptr->old_dot_theta);
+        leg_ptr->dot2_theta = left_theta_dot2_filter_.get()*1000;
+
+        left_L0_dot_filter_.input(leg_ptr->L0 - leg_ptr->old_L0);
+        leg_ptr->dot_L0 = left_L0_dot_filter_.get()*1000;
+        left_L0_dot2_filter_.input(leg_ptr->dot_L0 - leg_ptr->old_dot_L0);
+        leg_ptr->dot2_L0 = left_L0_dot2_filter_.get();
     }
     else if(leg == E_RIGHT) {
-        right_filter_.input(leg_ptr->theta - leg_ptr->old_theta);
-        leg_ptr->dot_theta = right_filter_.get()*1000;
-        right_L0_filter_.input(leg_ptr->L0 - leg_ptr->old_L0);
-        leg_ptr->dot_L0 = right_L0_filter_.get()*1000;
+        right_theta_dot_filter_.input(leg_ptr->theta - leg_ptr->old_theta);
+        leg_ptr->dot2_theta = right_theta_dot_filter_.get()*1000;
+        right_theta_dot2_filter_.input(leg_ptr->dot_theta-leg_ptr->old_dot_theta);
+        leg_ptr->old_dot_theta = right_theta_dot2_filter_.get()*1000;
+
+        right_L0_dot_filter_.input(leg_ptr->L0 - leg_ptr->old_L0);
+        leg_ptr->dot_L0 = right_L0_dot_filter_.get()*1000;
+        right_L0_dot2_filter_.input(leg_ptr->dot_L0 - leg_ptr->old_dot_L0);
+        leg_ptr->dot2_L0 = right_L0_dot2_filter_.get()*1000;
     }
 }
 

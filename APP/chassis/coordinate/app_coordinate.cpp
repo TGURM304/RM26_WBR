@@ -16,8 +16,25 @@ void app_coordinate::tick() {
     //选择对应的模式函数
     // (this->*behavior_table_[mode_state_.current_state_])(robot_snap_ptr_, mode_state_);
     //发送扭矩到关节模组，只能在这用
+
     motor_tor_update();
 
+    //离地检测测试代码
+    //腿推力上面还有腿xy轴方向上的推力
+    // float left_force = controller_.left_vmc_pkg.force_L;
+    // float left_tor = controller_.left_vmc_pkg.leg_tor;
+    // float right_force = controller_.right_vmc_pkg.force_L;
+    // float right_tor = controller_.right_vmc_pkg.leg_tor;
+    //
+    // support_.leg_data_update(robot_snap_ptr_->current_snap_get(),
+    //     robot_snap_ptr_->observer_get(),
+    //     left_force,left_tor,right_force,right_tor);
+    // support_.support_clc(Coordinate::E_left);
+    // support_.support_clc(Coordinate::E_right);
+    // auto temp = support_.get_support();
+    // app_msg_vofa_send(E_UART_DEBUG,
+    //     temp.left_support_,
+    //     temp.right_support_);
     //按照频率发送内容
     send_cnt++;
     if(send_cnt >= 5) {
@@ -416,9 +433,9 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
     auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
     auto right = controller_.lqr_controller->get_lqr_output(LQR::E_right);
 
-    robot_ctrl->left_vmc_pkg.force_y = 70;
+    robot_ctrl->left_vmc_pkg.force_y = 80;
     robot_ctrl->left_vmc_pkg.force_x = 0;
-    robot_ctrl->right_vmc_pkg.force_y = 70;
+    robot_ctrl->right_vmc_pkg.force_y = 80;
     robot_ctrl->right_vmc_pkg.force_x = 0;
 
     robot_ctrl->left_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_left;
@@ -430,7 +447,7 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
     robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg, VMC::E_Right);
 
     //更新到目标输出中
-    auto answer                 = robot_ctrl->vmc->tor_get();
+    auto answer= robot_ctrl->vmc->tor_get();
     motor_output_.tor_j1 = answer.p_right_tor2 + answer.c_right_tor2;
     motor_output_.tor_j2 = answer.p_right_tor1 + answer.c_right_tor1;
     motor_output_.tor_j3 = answer.p_left_tor1 + answer.c_left_tor1;

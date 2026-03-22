@@ -13,6 +13,7 @@
 #include "app_dog_ctrl.h"
 #include "app_ibc.h"
 #include "app_behavior_define.h"
+#include "app_support_clc.h"
 
 #include <vector>
 
@@ -41,7 +42,8 @@ namespace Coordinate {
         app_coordinate();
         app_coordinate(snap* robot_snap, robot_controller_struct controller, component motor_component)
         :robot_snap_ptr_(robot_snap), controller_(controller),
-        motor_component_(motor_component),ibc_gimbal_(E_CAN3,GIMBAL_ID)
+        motor_component_(motor_component),ibc_gimbal_(E_CAN3,GIMBAL_ID),
+        support_(30)
          {
             mode_state_ = {
                 .extern_cmd_ = CMD_EXECUTING,
@@ -58,9 +60,7 @@ namespace Coordinate {
         void test_function(const bsp_rc_data_t *rc);
         void reset();
         void inner_cmd_update();
-        snap *robot_snap_ptr_ = nullptr;
-
-    // private:
+    private:
 
         void exe_any                (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
         void exe_waiting            (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
@@ -100,10 +100,12 @@ namespace Coordinate {
         component motor_component_ = {};
         Relay::relay_lqr LQR_target_data = {};
         mode_state_struct mode_state_ = {};
+        snap *robot_snap_ptr_ = nullptr;
 
         uint16_t send_cnt;
         IBC::chassis chassis_send_;
         app_msg_can_receiver<IBC::gimbal> ibc_gimbal_;
+        support support_;
     };
 }
 

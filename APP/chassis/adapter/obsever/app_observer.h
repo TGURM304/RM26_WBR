@@ -31,10 +31,11 @@ using namespace Motor_Pkg;
     }motor_status;
     typedef struct {
         float pos_x, pos_y;
-        float theta, dot_theta;
-        float old_theta;
+        float theta, dot_theta, dot2_theta;
+        float old_theta, old_dot_theta;
         float theta_1, theta_2;//此处是等效腿上关节的夹角
-        float L0, old_L0, dot_L0;
+        float L0, old_L0, old_dot_L0;
+        float dot_L0, dot2_L0;
     }leg_status;
     typedef enum {
         E_LEFT,
@@ -69,10 +70,14 @@ using namespace Motor_Pkg;
         car_status LQR_status_;
         leg_status left_leg_status_;
         leg_status right_leg_status_;
-        TrimmedMeanFilter<10,float32_t> left_filter_;
-        TrimmedMeanFilter<10,float32_t> right_filter_;
-        TrimmedMeanFilter<10,float32_t> left_L0_filter_;
-        TrimmedMeanFilter<10,float32_t> right_L0_filter_;
+        TrimmedMeanFilter<10,float32_t> left_theta_dot_filter_;
+        TrimmedMeanFilter<10,float32_t> right_theta_dot_filter_;
+        TrimmedMeanFilter<10,float32_t> left_theta_dot2_filter_;
+        TrimmedMeanFilter<10,float32_t> right_theta_dot2_filter_;
+        TrimmedMeanFilter<10,float32_t> left_L0_dot_filter_;
+        TrimmedMeanFilter<10,float32_t> right_L0_dot_filter_;
+        TrimmedMeanFilter<10,float32_t> left_L0_dot2_filter_;
+        TrimmedMeanFilter<10,float32_t> right_L0_dot2_filter_;
     };
 } // Observer
 

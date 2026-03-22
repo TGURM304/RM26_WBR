@@ -16,8 +16,8 @@ namespace Relay {
         float data_x[10];
     }relay_lqr;
     typedef struct {
-        float32_t L0, dot_L0;
-        float32_t theta, dot_theta;
+        float32_t L0, dot_L0, dot2_L0;
+        float32_t theta, dot_theta, dot2_theta;
         float32_t theta_1, theta_2;//这里是等效腿上的夹角
     }relay_leg;
     typedef struct {
