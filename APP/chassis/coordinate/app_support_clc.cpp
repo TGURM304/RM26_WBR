@@ -34,7 +34,7 @@ void Coordinate::support::leg_data_update(robot_snap* snap,observer_struct* obse
     auto x_axis = matrixf::rot_x<3>(deg_rol);
     auto rotation_matrix = z_axis*y_axis*x_axis;
     auto world_acc_vector = rotation_matrix*acc_vector;
-    body_z_dot2_ = world_acc_vector[2][0];
+    body_z_dot2_ = world_acc_vector[2][0] + G;
 
     left_data_.L0_dot2_     = left->dot2_L0;
     left_data_.theta_dot2_  = left->dot2_theta;

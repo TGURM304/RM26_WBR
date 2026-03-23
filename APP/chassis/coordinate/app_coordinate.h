@@ -22,10 +22,14 @@
 #define DELTA_S_EDGE    0.40f
 #define DELTA_VER_EDGE  2.5f
 
+#define HEIGHT_MAX 0.37f
+#define HEIGHT_MIN 0.18
+
 #define FILTER_ORDER 2
 #define FILTER_FC_HIGH 100.0f
 #define FILTER_FC_LOW 10.0f
 #define FILTER_FS 1000.0f
+#define OFF_GROUND_CNT 200
 
 #define VX_MAX 3.0f
 #define VX_MIN (-3.0f)
@@ -34,6 +38,7 @@
 #define SPIN_RAD_MAX (6.0f)
 #define SPIN_RAD_MIN (-6.0f)
 
+#define LEG_FORWARD(len) (65-(0.35-(len))*10/(0.35-0.16))
 
 
 namespace Coordinate {
@@ -43,7 +48,7 @@ namespace Coordinate {
         app_coordinate(snap* robot_snap, robot_controller_struct controller, component motor_component)
         :robot_snap_ptr_(robot_snap), controller_(controller),
         motor_component_(motor_component),ibc_gimbal_(E_CAN3,GIMBAL_ID),
-        support_(30)
+        support_(40,40)
          {
             mode_state_ = {
                 .extern_cmd_ = CMD_EXECUTING,
@@ -106,6 +111,8 @@ namespace Coordinate {
         IBC::chassis chassis_send_;
         app_msg_can_receiver<IBC::gimbal> ibc_gimbal_;
         support support_;
+        uint16_t cnt_ = 0;
+        bool off_ground_flag_ = false;
     };
 }
 

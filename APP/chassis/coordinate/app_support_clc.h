@@ -16,7 +16,7 @@ typedef struct {
 }support_struct;
 typedef struct {
     float left_support_, right_support_;
-    float support_limit_;
+    float support_limit_up_, support_limit_down_;
 }support_force;
 typedef enum {
     E_left,
@@ -25,13 +25,14 @@ typedef enum {
 class support {
 public:
     support() = default;
-    support(float force_limit) {
-        force_.support_limit_ = force_limit;
+    support(float force_limit_up, float force_limit_down) {
+        force_.support_limit_up_ = force_limit_up;
+        force_.support_limit_down_ = force_limit_down;
     }
     void leg_data_update(robot_snap* snap,observer_struct* observer,
         float left_force, float left_tor, float right_force, float right_tor);
     void support_clc(leg_switch leg);
-    support_force get_support(){ return force_;}
+    support_force* get_support(){ return &force_;}
 private:
     float body_z_dot2_ = 0;
     support_struct left_data_ = {};

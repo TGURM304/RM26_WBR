@@ -21,20 +21,33 @@ void app_coordinate::tick() {
 
     //离地检测测试代码
     //腿推力上面还有腿xy轴方向上的推力
-    // float left_force = controller_.left_vmc_pkg.force_L;
-    // float left_tor = controller_.left_vmc_pkg.leg_tor;
-    // float right_force = controller_.right_vmc_pkg.force_L;
-    // float right_tor = controller_.right_vmc_pkg.leg_tor;
-    //
-    // support_.leg_data_update(robot_snap_ptr_->current_snap_get(),
-    //     robot_snap_ptr_->observer_get(),
-    //     left_force,left_tor,right_force,right_tor);
-    // support_.support_clc(Coordinate::E_left);
-    // support_.support_clc(Coordinate::E_right);
-    // auto temp = support_.get_support();
-    // app_msg_vofa_send(E_UART_DEBUG,
-    //     temp.left_support_,
-    //     temp.right_support_);
+    float left_force = controller_.left_vmc_pkg.force_L;
+    float left_tor = controller_.left_vmc_pkg.leg_tor;
+    float right_force = controller_.right_vmc_pkg.force_L;
+    float right_tor = controller_.right_vmc_pkg.leg_tor;
+
+    support_.leg_data_update(robot_snap_ptr_->current_snap_get(),
+        robot_snap_ptr_->observer_get(),
+        left_force,left_tor,right_force,right_tor);
+    support_.support_clc(Coordinate::E_left);
+    support_.support_clc(Coordinate::E_right);
+    float32_t left_support = support_.get_support()->left_support_ + LEG_FORWARD(mode_state_.height_record);
+    float32_t right_support = support_.get_support()->right_support_ + LEG_FORWARD(mode_state_.height_record);
+    if((left_support < support_.get_support()->support_limit_up_ && robot_snap_ptr_->current_snap_get()->left_leg.L0 > 0.22) &&
+        right_support < support_.get_support()->support_limit_up_ && robot_snap_ptr_->current_snap_get()->right_leg.L0 > 0.22) {
+        if(cnt_ < 100)
+            cnt_ ++;
+        else if(cnt_ == 100)
+            off_ground_flag_ = true;
+    }
+    else if(left_support > support_.get_support()->support_limit_down_ ||
+        right_support > support_.get_support()->support_limit_down_) {
+        if(cnt_ > 0)
+            cnt_--;
+        else if(cnt_ == 0)
+            off_ground_flag_ = false;
+    }
+
     //按照频率发送内容
     send_cnt++;
     if(send_cnt >= 5) {
@@ -54,6 +67,17 @@ void app_coordinate::init(){
 }
 
 void app_coordinate::test_function(const bsp_rc_data_t *rc){
+    auto temp = support_.get_support();
+    auto force = controller_.leg_ctrl->get_output();
+
+    app_msg_vofa_send(E_UART_DEBUG,
+        temp->left_support_,
+        temp->right_support_,
+        force.force_left,
+        force.force_right,
+        mode_state_.height_record,
+        robot_snap_ptr_->current_snap_get()->left_leg.L0,
+        cnt_);
 
     tick();
 
@@ -345,7 +369,7 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
 
     // 首次进入lqr模块的时候的进行数据净化
      if(state.last_state != state.current_state_ && state.current_state_ == E_LQR) {
-         LQR_target_data.S = 0;
+         LQR_target_data.S = 1;
          LQR_target_data.phi = 0;
          LQR_target_data.dot_S = 0;
          LQR_target_data.dot_phi = 0;
@@ -359,8 +383,8 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
      }
 
     mode_state_.height_record += ctrl.body_height/1000.0f;
-     if(mode_state_.height_record > 0.40f) mode_state_.height_record = 0.40f;
-     else if(mode_state_.height_record < 0.15f) mode_state_.height_record = 0.15f;
+     if(mode_state_.height_record > HEIGHT_MAX) mode_state_.height_record = HEIGHT_MAX;
+     else if(mode_state_.height_record < HEIGHT_MIN) mode_state_.height_record = HEIGHT_MIN;
     //roll轴补偿,此处的roll轴应该是和轮腿坐标方向是相反的，first是左腿目标长度，second是右腿目标长度
     // auto leg_target =  roll_feed(-snap->robot_raw_data.body_roll,snap->left_leg.L0,snap->right_leg.L0,ctrl.body_height);
     // controller_.leg_ctrl->left_len_update(snap->left_leg,leg_target.first/sinf(snap->left_leg.theta));
@@ -427,15 +451,32 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
     delta[8] =  0                       - (p->lqr_data.body_theta      );
     delta[9] =  0                       - (p->lqr_data.body_dot_theta  );
 
+//离地保护相关代码
+    if(off_ground_flag_ == true) {
+        delta[0] = 0;
+        delta[1] = 0;
+        delta[2] = 0;
+        delta[2] = 0;
+        delta[3] = 0;
+        delta[4] = 0;
+        delta[5] = 0;
+        delta[6] = 0;
+        delta[7] = 0;
+        delta[8] = 0;
+        delta[9] = 0;
+        robot_snap->snap_clear_S();
+        robot_snap->snap_set_zero();
+    }
+
     controller_.lqr_controller->fit_clc(delta,p->left_leg.L0,p->right_leg.L0);
 
     auto robot_ctrl = &controller_;
     auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
     auto right = controller_.lqr_controller->get_lqr_output(LQR::E_right);
 
-    robot_ctrl->left_vmc_pkg.force_y = 80;
+    robot_ctrl->left_vmc_pkg.force_y = LEG_FORWARD(mode_state_.height_record);
     robot_ctrl->left_vmc_pkg.force_x = 0;
-    robot_ctrl->right_vmc_pkg.force_y = 80;
+    robot_ctrl->right_vmc_pkg.force_y = LEG_FORWARD(mode_state_.height_record);
     robot_ctrl->right_vmc_pkg.force_x = 0;
 
     robot_ctrl->left_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_left;
