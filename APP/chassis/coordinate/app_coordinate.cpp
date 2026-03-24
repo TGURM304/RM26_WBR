@@ -70,14 +70,6 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
     auto temp = support_.get_support();
     auto force = controller_.leg_ctrl->get_output();
 
-    app_msg_vofa_send(E_UART_DEBUG,
-        temp->left_support_,
-        temp->right_support_,
-        force.force_left,
-        force.force_right,
-        mode_state_.height_record,
-        robot_snap_ptr_->current_snap_get()->left_leg.L0,
-        cnt_);
 
     tick();
 
@@ -106,13 +98,9 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
         mode_state_.current_state_ = E_PUT_BODY;
         exe_put_body(robot_snap_ptr_,mode_state_,test);
     }
-    else if(rc->s_l == 1 && rc->s_r == -1) {
+    else if(rc->s_l == 1 && (rc->s_r == -1 || rc->s_r == 0)) {
         mode_state_.current_state_ = E_PUT_LEG;
         exe_put_leg(robot_snap_ptr_,mode_state_,test);
-    }
-    else if(rc->s_l == 1 && rc->s_r == 0) {
-        mode_state_.current_state_ = E_CHAIR;
-        exe_chair(robot_snap_ptr_,mode_state_,test);
     }
     else if(rc->s_l == 1 && rc->s_r == 1) {
         mode_state_.current_state_ = E_LQR;
@@ -365,32 +353,23 @@ void app_coordinate::exe_chair(snap *robot_snap, mode_state_struct state,ctrl_st
 void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl){
 
     auto p = robot_snap->current_snap_get();
-    auto zero_p = robot_snap->zero_snap_get();
 
     // 首次进入lqr模块的时候的进行数据净化
      if(state.last_state != state.current_state_ && state.current_state_ == E_LQR) {
-         LQR_target_data.S = 1;
+         LQR_target_data.S = 0;
          LQR_target_data.phi = 0;
          LQR_target_data.dot_S = 0;
          LQR_target_data.dot_phi = 0;
 
          mode_state_.reduce_cnt = 0;
          mode_state_.delta_S = 0;
-         mode_state_.height_record = 0.20f;
+         mode_state_.height_record = 0.18f;
 
          robot_snap->snap_clear_S();
          robot_snap->snap_set_zero();
      }
 
-    mode_state_.height_record += ctrl.body_height/1000.0f;
-     if(mode_state_.height_record > HEIGHT_MAX) mode_state_.height_record = HEIGHT_MAX;
-     else if(mode_state_.height_record < HEIGHT_MIN) mode_state_.height_record = HEIGHT_MIN;
-    //roll轴补偿,此处的roll轴应该是和轮腿坐标方向是相反的，first是左腿目标长度，second是右腿目标长度
-    // auto leg_target =  roll_feed(-snap->robot_raw_data.body_roll,snap->left_leg.L0,snap->right_leg.L0,ctrl.body_height);
-    // controller_.leg_ctrl->left_len_update(snap->left_leg,leg_target.first/sinf(snap->left_leg.theta));
-    // controller_.leg_ctrl->right_len_update(snap->right_leg,leg_target.second/sinf(snap->right_leg.theta));
-    controller_.leg_ctrl->left_len_update(p->left_leg,mode_state_.height_record);
-    controller_.leg_ctrl->right_len_update(p->right_leg,mode_state_.height_record);
+    target_update(robot_snap,ctrl);
 
     /*我们需要在基础控制的前提下引入柔顺速度控制和位置控制转换
      * 一下几种情况我们需要进行柔顺过度（引入衰减器）
@@ -427,75 +406,33 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
     //      && mode_state_.reduce_cnt > 0)
     //    mode_state_.reduce_cnt -= 1;
 
-    LQR_target_data.S += ctrl.speed/1000.0f;
-
-    LQR_target_data.dot_S = ctrl.speed;
-    LQR_target_data.phi += ctrl.gry/1000.0f;
-
-    LQR_target_data.phi > PI? LQR_target_data.phi -= 2*PI:(LQR_target_data.phi < -PI? LQR_target_data.phi += 2*PI:0);
-    LQR_target_data.dot_phi = ctrl.gry;
-
-    float32_t delta[10];
-    delta[0] =  LQR_target_data.S       - (p->lqr_data.S                -zero_p->lqr_data.S              );
-    delta[1] =  LQR_target_data.dot_S    - (p->lqr_data.dot_S            -zero_p->lqr_data.dot_S          );
-    float temp = (p->lqr_data.phi              -zero_p->lqr_data.phi            );
-    temp > PI? temp -= 2*PI:(temp < -PI? temp += 2*PI:0);
-    delta[2] =  LQR_target_data.phi     - temp;
-    delta[2] > PI? delta[2] -= 2*PI:(delta[2] < -PI? delta[2] += 2*PI:0);
-    delta[2] = (((delta[2]) > (1)) ? (1) : (((delta[2]) < -(1)) ? -(1) : (delta[2])));
-    delta[3] =  LQR_target_data.dot_phi  - (p->lqr_data.dot_phi          -zero_p->lqr_data.dot_phi        );
-    delta[4] =  0                       - (p->lqr_data.left_theta      );
-    delta[5] =  0                       - (p->lqr_data.left_dot_theta  );
-    delta[6] =  0                       - (p->lqr_data.right_theta     );
-    delta[7] =  0                       - (p->lqr_data.right_dot_theta );
-    delta[8] =  0                       - (p->lqr_data.body_theta      );
-    delta[9] =  0                       - (p->lqr_data.body_dot_theta  );
+    basic_lqr_ctrl(robot_snap,state,ctrl);
 
 //离地保护相关代码
-    if(off_ground_flag_ == true) {
-        delta[0] = 0;
-        delta[1] = 0;
-        delta[2] = 0;
-        delta[2] = 0;
-        delta[3] = 0;
-        delta[4] = 0;
-        delta[5] = 0;
-        delta[6] = 0;
-        delta[7] = 0;
-        delta[8] = 0;
-        delta[9] = 0;
-        robot_snap->snap_clear_S();
-        robot_snap->snap_set_zero();
-    }
+    // if(off_ground_flag_ == true && (protect_cnt_ >= 2000 || protect_cnt_ < 0)) {
+    //     delta[0] = 0;
+    //     delta[1] = 0;
+    //     delta[2] = 0;
+    //     delta[2] = 0;
+    //     delta[3] = 0;
+    //     delta[4] = 0;
+    //     delta[5] = 0;
+    //     delta[6] = 0;
+    //     delta[7] = 0;
+    //     delta[8] = 0;
+    //     delta[9] = 0;
+    //     protect_cnt_ = -10;
+    //     robot_snap->snap_clear_S();
+    //     robot_snap->snap_set_zero();
+    // }
 
-    controller_.lqr_controller->fit_clc(delta,p->left_leg.L0,p->right_leg.L0);
-
-    auto robot_ctrl = &controller_;
-    auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
-    auto right = controller_.lqr_controller->get_lqr_output(LQR::E_right);
-
-    robot_ctrl->left_vmc_pkg.force_y = LEG_FORWARD(mode_state_.height_record);
-    robot_ctrl->left_vmc_pkg.force_x = 0;
-    robot_ctrl->right_vmc_pkg.force_y = LEG_FORWARD(mode_state_.height_record);
-    robot_ctrl->right_vmc_pkg.force_x = 0;
-
-    robot_ctrl->left_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_left;
-    robot_ctrl->left_vmc_pkg.leg_tor = left.body_balance+left.body_move;
-    robot_ctrl->right_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_right;
-    robot_ctrl->right_vmc_pkg.leg_tor = right.body_balance+right.body_move;
-
-    robot_ctrl->vmc->tor_clc(robot_ctrl->left_vmc_pkg,p->left_leg,VMC::E_Left);
-    robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg, VMC::E_Right);
+    basic_vmc_update(robot_snap,true);
 
     //更新到目标输出中
-    auto answer= robot_ctrl->vmc->tor_get();
-    motor_output_.tor_j1 = answer.p_right_tor2 + answer.c_right_tor2;
-    motor_output_.tor_j2 = answer.p_right_tor1 + answer.c_right_tor1;
-    motor_output_.tor_j3 = answer.p_left_tor1 + answer.c_left_tor1;
-    motor_output_.tor_j4 = answer.p_left_tor2 + answer.c_left_tor2;
-
-    motor_output_.dynamic_left = left.wheel_balance + left.wheel_move;
-    motor_output_.dynamic_right = right.wheel_balance + right.wheel_move;
+    motor_tor_ready();
+    app_msg_vofa_send(E_UART_DEBUG,
+        mode_state_.height_record,
+        p->lqr_data.left_theta);
 }
 
 //土狗模式部分
@@ -560,12 +497,13 @@ mode_state_struct app_coordinate::mode_ptr_search(){
     return temp;
 }
 
-/*
- * roll_rad机体roll角，和lqr建模中定义不同，是从后往前看的时候，逆时针为正的角度坐标系
- * 返回值中，first是左腿目标长度
- * second是右腿目标长度
- */
+
 std::pair<float32_t, float32_t> app_coordinate::roll_feed(float32_t roll_rad, float32_t left_r, float32_t right_r, float32_t target_height){
+    /*
+     * roll_rad机体roll角，和lqr建模中定义不同，是从后往前看的时候，逆时针为正的角度坐标系
+     * 返回值中，first是左腿目标长度
+     * second是右腿目标长度
+     */
     std::pair<float32_t, float32_t> target;
     target.first = 0, target.second = 0;
     float32_t gama_tan = (left_r-right_r)/RL;
@@ -577,5 +515,100 @@ std::pair<float32_t, float32_t> app_coordinate::roll_feed(float32_t roll_rad, fl
 
 void app_coordinate::ibc_send_update(float vector_x, float vector_y,
     float vector_z, mode_state mode){
+
+}
+
+void app_coordinate::exe_upstairs(snap *robot_snap, mode_state_struct state, ctrl_struct ctrl){
+
+}
+
+void app_coordinate::basic_lqr_ctrl(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl){
+    auto p = robot_snap->current_snap_get();
+    auto zero_p = robot_snap->zero_snap_get();
+
+    LQR_target_data.S += ctrl.speed/1000.0f;
+
+    LQR_target_data.dot_S = ctrl.speed;
+    LQR_target_data.phi += ctrl.gry/1000.0f;
+
+    LQR_target_data.phi > PI? LQR_target_data.phi -= 2*PI:(LQR_target_data.phi < -PI? LQR_target_data.phi += 2*PI:0);
+    LQR_target_data.dot_phi = ctrl.gry;
+
+    //腿长位移补偿
+    auto x =  mode_state_.height_record;
+    auto dis = 5.6651f - 40.5217f*x + 124.487f*powf(x,2) - 128.703f*powf(x,3);
+
+    float32_t delta[10];
+    delta[0] =  LQR_target_data.S       - (p->lqr_data.S                    -   zero_p->lqr_data.S - dis);
+    delta[1] =  LQR_target_data.dot_S    - (p->lqr_data.dot_S                   -   zero_p->lqr_data.dot_S);
+    float temp = (p->lqr_data.phi              -zero_p->lqr_data.phi            );
+    temp > PI? temp -= 2*PI:(temp < -PI? temp += 2*PI:0);
+    delta[2] =  LQR_target_data.phi     - temp;
+    delta[2] > PI? delta[2] -= 2*PI:(delta[2] < -PI? delta[2] += 2*PI:0);
+    delta[2] = (((delta[2]) > (1)) ? (1) : (((delta[2]) < -(1)) ? -(1) : (delta[2])));
+    delta[3] =  LQR_target_data.dot_phi  - (p->lqr_data.dot_phi          -zero_p->lqr_data.dot_phi        );
+    delta[4] =  0                       - (p->lqr_data.left_theta      );
+    delta[5] =  0                       - (p->lqr_data.left_dot_theta  );
+    delta[6] =  0                       - (p->lqr_data.right_theta     );
+    delta[7] =  0                       - (p->lqr_data.right_dot_theta );
+    delta[8] =  0                       - (p->lqr_data.body_theta      );
+    delta[9] =  0                       - (p->lqr_data.body_dot_theta  );
+
+    controller_.lqr_controller->fit_clc(delta,p->left_leg.L0,p->right_leg.L0);
+    // controller_.lqr_controller->static_clc(delta);
+}
+
+void app_coordinate::basic_vmc_update(snap *robot_snap,bool forward){
+    auto p = robot_snap->current_snap_get();
+    auto robot_ctrl = &controller_;
+    auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
+    auto right = controller_.lqr_controller->get_lqr_output(LQR::E_right);
+
+    if(forward == true) {
+        robot_ctrl->left_vmc_pkg.force_y = LEG_FORWARD(mode_state_.height_record);
+        robot_ctrl->left_vmc_pkg.force_x  = 0;
+        robot_ctrl->right_vmc_pkg.force_y = LEG_FORWARD(mode_state_.height_record);
+        robot_ctrl->right_vmc_pkg.force_x = 0;
+    }
+    else {
+        robot_ctrl->left_vmc_pkg.force_y = 0;
+        robot_ctrl->left_vmc_pkg.force_x = 0;
+        robot_ctrl->right_vmc_pkg.force_y = 0;
+        robot_ctrl->right_vmc_pkg.force_x = 0;
+    }
+
+    robot_ctrl->left_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_left;
+    robot_ctrl->left_vmc_pkg.leg_tor = left.body_balance + left.body_move;
+    robot_ctrl->right_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_right;
+    robot_ctrl->right_vmc_pkg.leg_tor = right.body_balance+right.body_move;
+
+    robot_ctrl->vmc->tor_clc(robot_ctrl->left_vmc_pkg, p->left_leg, VMC::E_Left);
+    robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg, VMC::E_Right);
+
+}
+
+void app_coordinate::motor_tor_ready(){
+    auto robot_ctrl = &controller_;
+    auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
+    auto right = controller_.lqr_controller->get_lqr_output(LQR::E_right);
+
+    auto answer= robot_ctrl->vmc->tor_get();
+    motor_output_.tor_j1 = answer.p_right_tor2 + answer.c_right_tor2;
+    motor_output_.tor_j2 = answer.p_right_tor1 + answer.c_right_tor1;
+    motor_output_.tor_j3 = answer.p_left_tor1 + answer.c_left_tor1;
+    motor_output_.tor_j4 = answer.p_left_tor2 + answer.c_left_tor2;
+
+    motor_output_.dynamic_left = left.wheel_balance + left.wheel_move;
+    motor_output_.dynamic_right = right.wheel_balance + right.wheel_move;
+}
+
+void app_coordinate::target_update(snap *robot_snap,ctrl_struct ctrl){
+    auto p = robot_snap->current_snap_get();
+
+    mode_state_.height_record += ctrl.body_height/1000.0f;
+    if(mode_state_.height_record > HEIGHT_MAX) mode_state_.height_record = HEIGHT_MAX;
+    else if(mode_state_.height_record < HEIGHT_MIN) mode_state_.height_record = HEIGHT_MIN;
+    controller_.leg_ctrl->left_len_update(p->left_leg,mode_state_.height_record);
+    controller_.leg_ctrl->right_len_update(p->right_leg,mode_state_.height_record);
 
 }

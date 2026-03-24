@@ -69,14 +69,14 @@ Relay::StateMapping mapping(&joint1,&joint2,&joint3,&joint4,
     &right_dynamic,&left_dynamic,&my_ins);
 Relay::message_adapter adapter(&mapping);
 LegController::app_leg_ctrl leg_controller(
-{80,2.0/1000,0,30,10},
-{50,0,0,5,0},
+{100,2.0/1000,1,30,10},
+{50,0,1,5,0},
 {1,4.0/1000.0f,0.5,16,12},
 {10,0,0,5,3});
 LegController::wheel_speed_controller dog_controller({.Kp = 2.5, .Ki = 0.05, .Kd = 0, .out_limit = 2.5, .iout_limit = 0.5});
 
 VMC::app_vmc vmc;
-LQR::LQR_controller lqr_controller((float32_t *)K17,(float32_t *)K_Fit_Coefficients);
+LQR::LQR_controller lqr_controller((float32_t *)K22,(float32_t *)K_Fit_Coefficients);
 Coordinate::observer_struct my_observer = {
 .my_adapter_ = &adapter,
 .J1 = &joint1,
@@ -121,7 +121,7 @@ void app_chassis_task(void *args) {
 
 void app_chassis_init() {
     // my_ins.set_correct(-5.0*3.14/180);
-    my_ins.set_correct(0);
+    my_ins.set_correct(5.0*3.14/180);
     right_dynamic.pkg_init();
     left_dynamic.pkg_init();
     joint1.pkg_init(), joint2.pkg_init(), joint3.pkg_init(), joint4.pkg_init();

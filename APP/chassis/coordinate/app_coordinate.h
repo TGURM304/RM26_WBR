@@ -40,6 +40,8 @@
 
 #define LEG_FORWARD(len) (65-(0.35-(len))*10/(0.35-0.16))
 
+//上台阶腿的摆角theta
+#define STEP_LIMIT_THETA (0.4636f)
 
 namespace Coordinate {
     class app_coordinate {
@@ -79,6 +81,11 @@ namespace Coordinate {
         void exe_off_ground         (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
         void exe_get_ground_smooth  (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
 
+        void basic_lqr_ctrl(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl);
+        //可以选择性开关前馈，自动读取LQR中的内容
+        void basic_vmc_update(snap *robot_snap, bool forward);
+        void target_update(snap *robot_snap, ctrl_struct ctrl);
+        void motor_tor_ready();
         void motor_tor_update();
         void motor_rest();
 
@@ -112,6 +119,7 @@ namespace Coordinate {
         app_msg_can_receiver<IBC::gimbal> ibc_gimbal_;
         support support_;
         uint16_t cnt_ = 0;
+        int16_t protect_cnt_ = 0;
         bool off_ground_flag_ = false;
     };
 }
