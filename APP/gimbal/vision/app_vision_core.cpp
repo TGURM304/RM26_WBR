@@ -20,8 +20,7 @@ void Gimbal::vision_core::tick() {
     auto pkg= snap_ptr_->get_snap_pkg();
 
     vision::send(pkg.ins_rol, pkg.ins_yaw, pkg.ins_yaw_dot,
-        pkg.ins_pit, pkg.ins_pit_dot,
-        17    , 1);
+        pkg.ins_pit, pkg.ins_pit_dot,22.2, 1, 0);
 }
 
 Gimbal::vision_pkg Gimbal::vision_core::get_target() {

@@ -15,12 +15,16 @@ void LegController::app_leg_ctrl::right_len_update(Relay::relay_leg right_leg, f
 }
 
 void LegController::app_leg_ctrl::left_deg_update(Relay::relay_leg left_leg, float target_deg) {
-    float32_t target_omega = left_deg_pid_.update(left_leg.theta,target_deg);
+    auto temp = target_deg - left_leg.theta;
+    temp > PI? temp-= 2*PI:(temp < -PI? temp += PI: temp);
+    float32_t target_omega = left_deg_pid_.update(0.0f,temp);
     output_.tor_left = left_omega_pid_.update(left_leg.dot_theta,target_omega);
 }
 
 void LegController::app_leg_ctrl::right_deg_update(Relay::relay_leg right_leg, float target_deg) {
-    float32_t target_omega = right_deg_pid_.update(right_leg.theta,target_deg);
+    auto temp = target_deg - right_leg.theta;
+    temp > PI? temp-= 2*PI:(temp < -PI? temp += PI: temp);
+    float32_t target_omega = right_deg_pid_.update(0.0f,temp);
     output_.tor_right = right_omega_pid_.update(right_leg.dot_theta,target_omega);
 }
 

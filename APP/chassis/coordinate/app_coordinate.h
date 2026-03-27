@@ -38,10 +38,19 @@
 #define SPIN_RAD_MAX (6.0f)
 #define SPIN_RAD_MIN (-6.0f)
 
-#define LEG_FORWARD(len) (65-(0.35-(len))*10/(0.35-0.16))
+#define LEG_FORWARD(len) (65.0f-(0.35f-(len))*10.0f/(0.35f-0.16f))
 
 //上台阶腿的摆角theta
-#define STEP_LIMIT_THETA (0.4636f)
+#define STEP_LIMIT_THETA (0.4636f - 0.177f)
+//磕上台阶后的等待
+#define STEP_READY_TIME (0.0f)
+//第一个执行步骤的定义
+#define STEP_FIRST_TIME (1000.0f)
+#define STEP_FIRST_TARGET_DEG (PI_F32)
+#define STEP_FIRST_TARGET_LEN (0.38f)
+
+//收腿的执行时间
+#define STEP_LEG_SHOU_TIME (1000.0f)
 
 namespace Coordinate {
     class app_coordinate {
@@ -85,6 +94,7 @@ namespace Coordinate {
         //可以选择性开关前馈，自动读取LQR中的内容
         void basic_vmc_update(snap *robot_snap, bool forward);
         void target_update(snap *robot_snap, ctrl_struct ctrl);
+        static bool upstairs_judge(snap *robo_snap);
         void motor_tor_ready();
         void motor_tor_update();
         void motor_rest();
@@ -121,6 +131,7 @@ namespace Coordinate {
         uint16_t cnt_ = 0;
         int16_t protect_cnt_ = 0;
         bool off_ground_flag_ = false;
+        upstairs_struct upstairs_ = {};
     };
 }
 

@@ -9,6 +9,14 @@
 
 namespace Coordinate {
 typedef enum {
+    E_NOT_READY,
+    E_READY,
+    E_FIRST,
+    E_LEG_SHOU,
+    E_STAND_READY,
+    E_STAND
+}upstairs_stage;
+typedef enum {
     E_ANY,
     E_WAITING,
     E_PUT_BODY,
@@ -77,6 +85,18 @@ typedef struct {
     float32_t ver_x, ver_y;//相对云台的，云台正方向为x轴正方向
     bool spin_flag;
 } ctrl_struct;
+typedef struct {
+    upstairs_stage stage_;
+    float exe_cnt_;
+    bool upstairs_flag;
+    float left_deg_target;
+    float right_deg_target;
+    float left_len_target;
+    float right_len_target;
+    Relay::relay_lqr start_state;
+    Relay::relay_leg left_leg;
+    Relay::relay_leg right_leg;
+} upstairs_struct;
 static const int16_t size_map = 14+1;
 inline move_define move_map[size_map] = {
     /* 等待状态 */

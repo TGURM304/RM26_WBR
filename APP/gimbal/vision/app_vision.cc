@@ -40,8 +40,19 @@ uint32_t vision::last_update_time() {
 }
 
 static auto ins = app_ins_data();
-
-void vision::send(float roll, float yaw, float yaw_vel, float pitch, float pitch_vel, float bullet_speed, uint16_t bullet_count) {
+/**
+ *
+ * @param roll 云台roll
+ * @param yaw 云台yaw
+ * @param yaw_vel 云台yaw速度
+ * @param pitch 云台pitch
+ * @param pitch_vel 云台pitch速度
+ * @param bullet_speed 弹速
+ * @param bullet_count 弹数量
+ * @param target_color 目标颜色,0是都瞄,'R' = 82 红色, 'B' == 66 蓝色
+ */
+void vision::send(float roll, float yaw, float yaw_vel, float pitch,
+    float pitch_vel, float bullet_speed, uint16_t bullet_count, uint8_t target_color) {
     float q[4];
     SendPacket pkg = {};
 
@@ -71,6 +82,7 @@ void vision::send(float roll, float yaw, float yaw_vel, float pitch, float pitch
     pkg.pitch_vel = pitch_vel;
     pkg.bullet_speed = bullet_speed;
     pkg.bullet_count = bullet_count;
+    pkg.color = target_color;
     // TODO: CRC 未测试
     CRC16::append(pkg);
     bsp_uart_send(E_UART_VISION, reinterpret_cast <uint8_t *> (&pkg), sizeof pkg);
