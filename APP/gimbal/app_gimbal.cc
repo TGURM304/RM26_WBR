@@ -10,6 +10,7 @@
 #include "dev_motor_dm.h"
 #include "app_second_order.h"
 #include "app_vision_core.h"
+#include "robomaster.h"
 #include "const_data/robot_data.h"
 
 
@@ -44,15 +45,16 @@ Motor::DMMotor pit_motor("pit_motor",
                            .kp_max    = 500,
                            .kd_max    = 5 });
 
-Controller::PID yaw_pos(25, 0, 0, 15, 0);
-Controller::PID yaw_speed(2, 0.1 / 1000.0f, 0, 3, 0.2);
-
-Controller::PID fric_speed(10, 1, 0, 16384, 3000);
-Controller::PID trigger_speed(20, 0, 0, 16384, 10000);
 
 
 auto ins = app_ins_data();
 auto rc  = bsp_rc_data();
+// PID yaw_pos(25, 0, 0, 15, 0);
+// PID yaw_speed(2, 0.1 / 1000.0f, 0, 3, 0.2);
+//
+// PID fric_speed(10, 1, 0, 16384, 3000);
+// PID trigger_speed(20, 0, 0, 16384, 10000);
+
 
 Gimbal::snap robo_snap(
     &yaw_motor, &pit_motor, &trigger_motor, &left_shoot_motor, &right_shoot_motor, ins, PITCH_ZERO_POINT, 0.0f);
@@ -94,7 +96,7 @@ void app_gimbal_task(void *args) {
             raw_yaw > PI_F32? raw_yaw -= 2*PI_F32:(raw_yaw < -PI_F32?raw_yaw+= 2*PI_F32:0);
             target_yaw = yaw_path.update_limit(raw_yaw);
             my_head.head_pid_clc(target_yaw, target_pitch);
-            my_head.head_output();
+            my_head.tick();
         }
         else if(rc->s_l == -1) {
             if(vision_target.target_pitch != 0 || vision_target.target_yaw != 0) {
@@ -103,7 +105,7 @@ void app_gimbal_task(void *args) {
                 target_yaw = yaw_path.update_limit(raw_yaw);
             }
             my_head.head_pid_clc(target_yaw, target_pitch);
-            my_head.head_output();
+            my_head.tick();
         }
         else {
             target_pitch = 0, target_yaw = robo_snap.get_snap_pkg().ins_yaw, raw_yaw = robo_snap.get_snap_pkg().ins_yaw;
@@ -127,7 +129,7 @@ void app_gimbal_task(void *args) {
         }
 
 
-        app_msg_vofa_send(E_UART_DEBUG, /* vision_target.target_pitch,*/
+        app_msg_vofa_send(E_UART_1, /* vision_target.target_pitch,*/
                           vision_target.target_yaw,
                           /*target_yaw, target_pitch,*/
                           raw_yaw,
@@ -149,8 +151,8 @@ void app_gimbal_init() {
     trigger_motor.enable();
 
     my_vision_core.init();
-    my_head.head_init(yaw_pos, yaw_speed);
-    my_shoot.shoot_param_set(fric_speed, trigger_speed);
+    // my_head.head_init(yaw_pos, yaw_speed);
+    // my_shoot.shoot_init(fric_speed, trigger_speed);
     robo_snap.snap_init();
 }
 

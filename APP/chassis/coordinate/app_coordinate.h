@@ -57,8 +57,7 @@ namespace Coordinate {
         app_coordinate();
         app_coordinate(snap* robot_snap, robot_controller_struct controller, component motor_component)
         :robot_snap_ptr_(robot_snap), controller_(controller),
-        motor_component_(motor_component),ibc_gimbal_(E_CAN3,GIMBAL_ID),
-        support_(40,40)
+        motor_component_(motor_component),ibc_gimbal_(E_CAN3,GIMBAL_ID)
          {
             mode_state_ = {
                 .extern_cmd_ = CMD_EXECUTING,
@@ -74,7 +73,7 @@ namespace Coordinate {
         void init();
         void test_function(const bsp_rc_data_t *rc);
         void reset();
-        void out_side_cmd_update(IBC::ibc_gimbal gimbal);
+        void out_side_cmd_update(app_msg_can_receiver<IBC::ibc_gimbal> gimbal);
         void inner_cmd_update();
     private:
 
@@ -124,7 +123,6 @@ namespace Coordinate {
         uint16_t send_cnt;
         IBC::ibc_chassis chassis_send_;
         app_msg_can_receiver<IBC::ibc_gimbal> ibc_gimbal_;
-        support support_;
         uint16_t cnt_ = 0;
         int16_t protect_cnt_ = 0;
         bool off_ground_flag_ = false;

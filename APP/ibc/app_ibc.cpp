@@ -4,10 +4,17 @@
 
 #include "app_ibc.h"
 
-int16_t IBC::float32_to_int16(float32_t data, float data_max, float data_min) {
+uint16_t IBC::float32_to_uint16(float32_t data, float data_max, float data_min) {
     float data_range = data_max - data_min;
     float percent = (data - data_min)/data_range;
-    int16_t answer = 65535*percent;
+    uint16_t answer = (uint16_t)(65536.0f*percent);
+    return answer;
+}
+
+float32_t IBC::uint16_to_float32(uint16_t data, float data_max, float data_min) {
+    float percent = ((float)data)/65536.0f;
+    float range = data_max - data_min;
+    float answer = data_min + range*percent;
     return answer;
 }
 

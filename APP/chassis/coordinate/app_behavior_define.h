@@ -80,6 +80,7 @@ typedef struct {
     mode_state current_state_,last_state;
     uint16_t reduce_cnt;
     float delta_S;
+    float delta_yaw;
     float height_record;
 } mode_state_struct;
 typedef struct {

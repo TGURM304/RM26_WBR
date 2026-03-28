@@ -25,7 +25,7 @@
 #include "bsp_def.h"
 
 #include "app_msg.h"
-#include "app_referee.h"
+#include "robomaster.h"
 #include "app_sys_err.h"
 #include "app_music.h"
 #include "app_terminal.h"
@@ -76,7 +76,12 @@ void app_sys_init() {
     app_gimbal_init();
 #endif
 #ifdef USE_REFEREE_SYSTEM
-    app_referee_init();
+#ifdef COMPILE_GIMBAL
+    robomaster::image::init(E_UART_7);
+#endif
+#ifdef COMPILE_CHASSIS
+    robomaster::basic::init(E_UART_7);
+#endif
 #endif
 #ifdef USE_FLASH_CHECK
     // 校验 flash 中的 brief，若此处校验不通过，请连接 terminal 执行 flash clear
@@ -103,7 +108,6 @@ void bsp_hw_init() {
     bsp_can_init(E_CAN1, &hfdcan1);
     bsp_can_init(E_CAN2, &hfdcan2);
     bsp_can_init(E_CAN3, &hfdcan3);
-    bsp_uart_init(E_UART_DEBUG, &huart1);
 }
 
 // 放一些系统级任务

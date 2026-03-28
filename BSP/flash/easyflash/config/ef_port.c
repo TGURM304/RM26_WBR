@@ -141,10 +141,10 @@ void ef_log_debug(const char *file, const long line, const char *format, ...) { 
 void ef_log_info(const char *format, ...) { (void)format; }
 
 void ef_print(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  char buf[512];
-  int len = vsprintf(buf, format, args);
-  bsp_uart_send(E_UART_DEBUG, buf, len);
-  va_end(args);
+  // va_list args;
+  // va_start(args, format);
+  // char buf[512];
+  // int len = vsprintf(buf, format, args);
+  // bsp_uart_send(E_UART_DEBUG, buf, len);
+  // va_end(args);
 }

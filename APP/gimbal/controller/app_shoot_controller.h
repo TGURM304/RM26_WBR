@@ -31,7 +31,7 @@ typedef struct {
             : motor_left_(left_shoot), motor_right_(right_shoot),
         motor_trigger_(trigger), snap_ptr_(snap_ptr) {
         }
-        void shoot_param_set(
+        void shoot_init(
             const Controller::PID& fric_speed_param,
             const Controller::PID& trigger_speed_param);
         void shoot_update(fric_mode_e fric_mode, trigger_mode_e trigger_mode);

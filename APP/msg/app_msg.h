@@ -33,7 +33,7 @@ template <typename... Args> void app_msg_vofa_send(bsp_uart_e e, Args... args) {
         float f;
     } tail;
     std::vector<float> buffer{ static_cast<float>(args)..., tail.f };
-    bsp_uart_send(e, reinterpret_cast<uint8_t *>(buffer.data()), buffer.size() * sizeof(float));
+    bsp_uart_send_async(e, reinterpret_cast<uint8_t *>(buffer.data()), buffer.size() * sizeof(float));
 }
 
 struct app_msg_can_t {

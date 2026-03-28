@@ -82,3 +82,14 @@ ibc_gimbal_send_pkg *gimbal_ctrl::get_gimbal_pkg(){
     return &gimbal_pkg_;
 }
 
+void gimbal_ctrl::tick(){
+    //此处先不写哪些乱七八糟的逻辑
+    //todo:完成运动控制的映射
+    gimbal_pkg_.chassis_cmd_ = flag_.chassis_sate_;
+    gimbal_pkg_.delta_yaw_ = cmd_.delta_body_yaw;
+    gimbal_pkg_.switch_cmd_ = flag_.switch_cmd_;
+    gimbal_pkg_.dot_S = cmd_.vx;
+    app_msg_can_send(E_CAN3,GIMBAL_ID,gimbal_pkg_);
+
+}
+

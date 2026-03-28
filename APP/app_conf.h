@@ -16,6 +16,8 @@
 // 若启用，则可通过串口访问终端
 #define USE_TERMINAL
 
+#define TERMINAL_PORT E_UART_1
+
 #define TERMINAL_USER_NAME "user"
 #define TERMINAL_PLATFORM_NAME "stm32"
 

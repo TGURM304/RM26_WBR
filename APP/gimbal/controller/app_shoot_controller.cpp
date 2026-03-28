@@ -62,7 +62,7 @@ void Gimbal::Shoot::shoot_clear() {
     motor_trigger_->clear();
 }
 
-void Gimbal::Shoot::shoot_param_set(const Controller::PID &fric_speed_param,
+void Gimbal::Shoot::shoot_init(const Controller::PID &fric_speed_param,
     const Controller::PID &trigger_speed_param) {
     fric_left_speed_ = fric_speed_param;
     fric_right_speed_ = fric_speed_param;

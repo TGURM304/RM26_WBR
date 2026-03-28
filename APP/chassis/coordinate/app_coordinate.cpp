@@ -16,40 +16,10 @@ void app_coordinate::tick() {
     //选择对应的模式函数
     // (this->*behavior_table_[mode_state_.current_state_])(robot_snap_ptr_, mode_state_);
     //发送扭矩到关节模组，只能在这用
-
     motor_tor_update();
 
-    //离地检测测试代码
-    //腿推力上面还有腿xy轴方向上的推力
-    float left_force = controller_.left_vmc_pkg.force_L;
-    float left_tor = controller_.left_vmc_pkg.leg_tor;
-    float right_force = controller_.right_vmc_pkg.force_L;
-    float right_tor = controller_.right_vmc_pkg.leg_tor;
-
-    support_.leg_data_update(robot_snap_ptr_->current_snap_get(),
-        robot_snap_ptr_->observer_get(),
-        left_force,left_tor,right_force,right_tor);
-    support_.support_clc(Coordinate::E_left);
-    support_.support_clc(Coordinate::E_right);
-    float32_t left_support = support_.get_support()->left_support_ + LEG_FORWARD(mode_state_.height_record);
-    float32_t right_support = support_.get_support()->right_support_ + LEG_FORWARD(mode_state_.height_record);
-    if((left_support < support_.get_support()->support_limit_up_ && robot_snap_ptr_->current_snap_get()->left_leg.L0 > 0.22) &&
-        right_support < support_.get_support()->support_limit_up_ && robot_snap_ptr_->current_snap_get()->right_leg.L0 > 0.22) {
-        if(cnt_ < 100)
-            cnt_ ++;
-        else if(cnt_ == 100)
-            off_ground_flag_ = true;
-    }
-    else if(left_support > support_.get_support()->support_limit_down_ ||
-        right_support > support_.get_support()->support_limit_down_) {
-        if(cnt_ > 0)
-            cnt_--;
-        else if(cnt_ == 0)
-            off_ground_flag_ = false;
-    }
-
     auto snap = robot_snap_ptr_->current_snap_get()->lqr_data;
-    app_msg_vofa_send(E_UART_DEBUG,
+    app_msg_vofa_send(E_UART_1,
         upstairs_.exe_cnt_,
         upstairs_.left_len_target,
         upstairs_.right_len_target
@@ -60,9 +30,9 @@ void app_coordinate::tick() {
     if(send_cnt >= 5) {
         send_cnt = 0;
         auto p = robot_snap_ptr_->current_snap_get();
-        chassis_send_.vector_x = IBC::float32_to_int16(p->robot_raw_data.vector_x,1,-1);
-        chassis_send_.vector_y = IBC::float32_to_int16(p->robot_raw_data.vector_y,1,-1);
-        chassis_send_.vector_z = IBC::float32_to_int16(p->robot_raw_data.vector_z,1,-1);
+        chassis_send_.vector_x = IBC::float32_to_uint16(p->robot_raw_data.vector_x,1,-1);
+        chassis_send_.vector_y = IBC::float32_to_uint16(p->robot_raw_data.vector_y,1,-1);
+        chassis_send_.vector_z = IBC::float32_to_uint16(p->robot_raw_data.vector_z,1,-1);
         chassis_send_.chassis_cmd_ = mode_state_.current_state_;
         app_msg_can_send(E_CAN3,CHASSIS_ID,chassis_send_);
     }
@@ -74,8 +44,9 @@ void app_coordinate::init(){
 }
 
 void app_coordinate::test_function(const bsp_rc_data_t *rc){
-    auto temp = support_.get_support();
     auto force = controller_.leg_ctrl->get_output();
+
+    out_side_cmd_update(ibc_gimbal_);
 
     tick();
 
@@ -117,7 +88,17 @@ void app_coordinate::motor_tor_update(){
     p->j4->set_tor(o->tor_j4);
     p->left->set_tor(o->dynamic_left);
     p->right->set_tor(o->dynamic_right);
+    out_side_cmd_update(ibc_gimbal_);
 }
+
+//更新外部命令
+void app_coordinate::out_side_cmd_update(app_msg_can_receiver<IBC::ibc_gimbal> gimbal){
+    mode_state_.extern_cmd_ = gimbal()->switch_cmd;
+    mode_state_.delta_S = gimbal()->dot_S;
+    mode_state_.delta_yaw = gimbal()->delta_yaw;
+    mode_state_.height_record = gimbal()->height;
+}
+
 
 void app_coordinate::motor_rest(){
     motor_output_ = {};
@@ -365,7 +346,7 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
 
     //更新到目标输出中
     motor_tor_ready();
-    app_msg_vofa_send(E_UART_DEBUG,
+    app_msg_vofa_send(E_UART_1,
         mode_state_.height_record,
         p->lqr_data.left_theta);
 }
