@@ -11,20 +11,18 @@ void Gimbal::Shoot::shoot_update(fric_mode_e fric_mode, trigger_mode_e trigger_m
     shoot_state_.fric_flag = fric_mode;
     shoot_state_.trigger_flag = trigger_mode;
 
-    //摩檫轮直径60mm
+    //6500弹速在
     if(fric_mode == E_FRIC_REST)
         fric_target_speed_ = fric_left_out_ = fric_right_out_ = 0;
-    else if(fric_mode == E_FRIC_SLOW)
-        fric_target_speed_ = 2000;
     else if(fric_mode == E_FRIC_FAST)
         fric_target_speed_ = 6500;
 
     if(trigger_mode == E_TRIGGER_REST)
         trigger_out_ = trigger_target_speed_ = 0;
     else if(trigger_mode == E_TRIGGER_SLOW)
-        trigger_target_speed_ = -1000;
+        trigger_target_speed_ = -2000;
     else if(trigger_mode == E_TRIGGER_FAST)
-        trigger_target_speed_ = -3000;
+        trigger_target_speed_ = -4000;
 }
 
 void Gimbal::Shoot::shoot_tick() {

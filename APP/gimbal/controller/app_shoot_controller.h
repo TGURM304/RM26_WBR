@@ -17,9 +17,8 @@ typedef enum {
 } trigger_mode_e;
 typedef enum {
     E_FRIC_REST = 0,
-    E_FRIC_SLOW = 1,
-    E_FRIC_FAST = 2,
-}fric_mode_e;
+    E_FRIC_FAST = 1,
+} fric_mode_e;
 typedef struct {
     fric_mode_e fric_flag = E_FRIC_REST;
     trigger_mode_e trigger_flag = E_TRIGGER_REST;

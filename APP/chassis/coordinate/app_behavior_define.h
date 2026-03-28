@@ -5,7 +5,9 @@
 #ifndef APP_BEHAVIOR_DEFINE_H
 #define APP_BEHAVIOR_DEFINE_H
 
-
+#include "app_LQR.h"
+#include "app_dog_ctrl.h"
+#include "app_leg_ctrl.h"
 
 namespace Coordinate {
 typedef enum {
