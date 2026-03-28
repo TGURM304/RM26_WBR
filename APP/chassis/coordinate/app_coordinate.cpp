@@ -55,15 +55,15 @@ void app_coordinate::tick() {
         upstairs_.right_len_target
         );
 
-    //按照频率发送内容
+    //按照频率发送内容,200Hz
     send_cnt++;
     if(send_cnt >= 5) {
         send_cnt = 0;
         auto p = robot_snap_ptr_->current_snap_get();
-        chassis_send_.vector_x = p->robot_raw_data.vector_x;
-        chassis_send_.vector_y = p->robot_raw_data.vector_y;
-        chassis_send_.vector_z = p->robot_raw_data.vector_z;
-        chassis_send_.mode = mode_state_.current_state_;
+        chassis_send_.vector_x = IBC::float32_to_int16(p->robot_raw_data.vector_x,1,-1);
+        chassis_send_.vector_y = IBC::float32_to_int16(p->robot_raw_data.vector_y,1,-1);
+        chassis_send_.vector_z = IBC::float32_to_int16(p->robot_raw_data.vector_z,1,-1);
+        chassis_send_.chassis_cmd_ = mode_state_.current_state_;
         app_msg_can_send(E_CAN3,CHASSIS_ID,chassis_send_);
     }
 
@@ -106,12 +106,6 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
         mode_state_.current_state_ = E_WAITING;
         motor_rest();
     }
-
-    // auto snap = robot_snap_ptr_->current_snap_get()->lqr_data;
-    // auto ls = controller_.lqr_controller->get_lqr_output(LQR::E_left);
-    // auto rs = controller_.lqr_controller->get_lqr_output(LQR::E_right);
-    // auto ld = controller_.lqr_controller->get_dynamic(LQR::E_left);
-    // auto rd = controller_.lqr_controller->get_dynamic(LQR::E_right);
 }
 
 void app_coordinate::motor_tor_update(){
@@ -366,44 +360,7 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
      }
 
     target_update(robot_snap,ctrl);
-
-    /*我们需要在基础控制的前提下引入柔顺速度控制和位置控制转换
-     * 一下几种情况我们需要进行柔顺过度（引入衰减器）
-     * 1. 当我们的delta_S误差过大
-     * 可能是因为，打滑了、顶到墙了
-     * 打滑了我们就得捕捉到一两次误差爆掉就得引入衰减器，并且判断一段之后退出，而顶墙可以使用速度误差判断退出
-     * 2. delta_dot_S误差过大
-     * 对于顶墙，我们的误差值基本确定，所以说我们不考虑顶墙，这个主要是打滑造成的，
-     * 我们要做的是解决打滑问题，检测出来并且实现衰减和退出判断
-     *
-     * 解决办法：
-     * 当检测到delta_S delta_dot_S中有一个爆了，那就直接进入衰减模式，退出衰减的判断条件就是delta_dot_S小到某个值
-     */
-    //以下为衰减保护相关代码
-    //衰减系数可以调节，公式为：k=h^(1/n)，n为衰减次数，k为每次衰减系数，h为最终衰减到的值，也就是说经过n次迭代后衰减到h的值
-    //此处我们取h = 0.3， n = 300， k= 0.996
-    // if(mode_state_.reduce_cnt >= REDUCE_EDGE_DOWN) {
-    //     mode_state_.delta_S *= 0.996f;
-    //     LQR_target_data.S = mode_state_.delta_S + (p->lqr_data.S -zero_p->lqr_data.S);
-    // }
-    // else {
-    //     mode_state_.delta_S = LQR_target_data.S - (p->lqr_data.S -zero_p->lqr_data.S);
-    //     LQR_target_data.S += ctrl.speed/1000.0f;
-    // }
-    // if( abs(ctrl.speed) >= 3.0f ||
-    //     abs(mode_state_.delta_S) > DELTA_S_EDGE ||
-    //     abs(LQR_target_data.dot_S - (p->lqr_data.dot_S-zero_p->lqr_data.dot_S)) > DELTA_VER_EDGE
-    //     ) {
-    //     if(mode_state_.reduce_cnt < REDUCE_EDGE_UP) {
-    //     mode_state_.reduce_cnt += 10;
-    //     }
-    // }
-    // else if(abs(LQR_target_data.dot_S - (p->lqr_data.dot_S - zero_p->lqr_data.dot_S)) < 0.5f
-    //      && mode_state_.reduce_cnt > 0)
-    //    mode_state_.reduce_cnt -= 1;
-
     basic_lqr_ctrl(robot_snap,state,ctrl);
-
     basic_vmc_update(robot_snap,true);
 
     //更新到目标输出中
@@ -428,18 +385,6 @@ void app_coordinate::exe_dog(snap *robot_snap, mode_state_struct state, ctrl_str
 
     controller_.dog_ctrl->speed_update(ver,gry,
         p->robot_raw_data.speed_left,p->robot_raw_data.speed_right);
-    //step2: 更新数据
-    // if(abs(deg - p->robot_raw_data.body_phi) < PI/6) {
-    //     controller_.dog_ctrl->speed_update(ver*cos(deg - p->robot_raw_data.body_phi),
-    //         p->robot_raw_data.speed_left,p->robot_raw_data.speed_right,
-    //         p->robot_raw_data.body_phi,p->robot_raw_data.dot_phi);
-    // }
-    // else {
-    //     controller_.dog_ctrl->speed_update(0,
-    //         p->robot_raw_data.speed_left,p->robot_raw_data.speed_right,
-    //         p->robot_raw_data.body_phi,p->robot_raw_data.dot_phi);
-    // }
-    //更新腿部控制
 
     //step3: 拉取数据并且输出
     motor_output_.tor_j1 = 0;
@@ -473,176 +418,6 @@ mode_state_struct app_coordinate::mode_ptr_search(){
         }
     }
     return temp;
-}
-
-std::pair<float32_t, float32_t> app_coordinate::roll_feed(float32_t roll_rad, float32_t left_r, float32_t right_r, float32_t target_height){
-    /*
-     * roll_rad机体roll角，和lqr建模中定义不同，是从后往前看的时候，逆时针为正的角度坐标系
-     * 返回值中，first是左腿目标长度
-     * second是右腿目标长度
-     */
-    std::pair<float32_t, float32_t> target;
-    target.first = 0, target.second = 0;
-    float32_t gama_tan = (left_r-right_r)/RL;
-    float32_t beta_deg = atanf(gama_tan)+roll_rad;
-    target.first = (2*target_height - RL*tanf(beta_deg))/2;
-    target.second = (2*target_height + RL*tanf(beta_deg))/2;
-    return  target;
-}
-
-void app_coordinate::ibc_send_update(float vector_x, float vector_y,
-    float vector_z, mode_state mode){
-
-}
-
-void app_coordinate::exe_upstairs(snap *robot_snap, mode_state_struct state, ctrl_struct ctrl){
-    auto snap = robot_snap->current_snap_get()->lqr_data;
-    auto snap_left = robot_snap_ptr_->current_snap_get()->left_leg;
-    auto snap_right = robot_snap_ptr_->current_snap_get()->right_leg;
-    auto p = robot_snap->current_snap_get();
-    auto robot_ctrl = &controller_;
-
-
-    if(state.current_state_ == E_UPSTAIRS && state.last_state != E_UPSTAIRS) {
-        upstairs_.stage_ = E_NOT_READY;
-        upstairs_.exe_cnt_ = 0;
-        upstairs_.left_len_target = 0;
-        upstairs_.left_deg_target = 0;
-        upstairs_.right_len_target = 0;
-        upstairs_.right_deg_target = 0;
-        upstairs_.right_leg = {};
-        upstairs_.left_leg = {};
-        upstairs_.upstairs_flag = false;
-    }
-    if(upstairs_.upstairs_flag == false) {
-        target_update(robot_snap,ctrl);
-        basic_lqr_ctrl(robot_snap,state,ctrl);
-        basic_vmc_update(robot_snap,true);
-        upstairs_.upstairs_flag = upstairs_judge(robot_snap);
-        //更新到目标输出中
-        motor_tor_ready();
-    }
-    else {
-        LQR_target_data.S = 0;
-        LQR_target_data.phi = 0;
-        LQR_target_data.dot_S = 0;
-        LQR_target_data.dot_phi = 0;
-
-        mode_state_.reduce_cnt = 0;
-        mode_state_.delta_S = 0;
-        mode_state_.height_record = 0.18f;
-        //以下为开环运行内容
-
-        //逻辑切换
-        if(upstairs_.stage_ == E_NOT_READY && upstairs_.exe_cnt_ <= 0) {
-            upstairs_.stage_ = E_READY;
-        }
-        else if(upstairs_.stage_ == E_READY && upstairs_.exe_cnt_ >= STEP_READY_TIME) {
-            upstairs_.stage_ = E_FIRST;
-            upstairs_.exe_cnt_ = 0;
-            upstairs_.start_state = snap;
-            upstairs_.left_leg = robot_snap_ptr_->current_snap_get()->left_leg;
-            upstairs_.right_leg = robot_snap_ptr_->current_snap_get()->right_leg;
-        }
-        else if(upstairs_.stage_ == E_FIRST && upstairs_.exe_cnt_ >= STEP_FIRST_TIME) {
-            upstairs_.stage_ = E_LEG_SHOU;
-            upstairs_.exe_cnt_ = 0;
-        }
-        else if(upstairs_.stage_ == E_LEG_SHOU && upstairs_.exe_cnt_ >= STEP_LEG_SHOU_TIME) {
-            upstairs_.stage_ = E_STAND_READY;
-            upstairs_.exe_cnt_ = 0;
-        }
-        //运行控制
-        if(upstairs_.stage_ == E_READY && upstairs_.exe_cnt_ < STEP_READY_TIME) {
-            upstairs_.exe_cnt_ ++;
-            motor_rest();
-        }
-        else if(upstairs_.stage_ == E_FIRST && upstairs_.exe_cnt_ < STEP_FIRST_TIME) {
-            upstairs_.exe_cnt_ ++;
-
-            //更新目标摆角
-            upstairs_.left_len_target = upstairs_.right_len_target = 0.38;
-            controller_.leg_ctrl->left_len_update(p->left_leg,0.38);
-            controller_.leg_ctrl->right_len_update(p->right_leg,0.38);
-            controller_.leg_ctrl->left_deg_update(p->left_leg,PI);
-            controller_.leg_ctrl->right_deg_update(p->right_leg,PI);
-            //更新目标控制量
-            robot_ctrl->left_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_left;
-            robot_ctrl->left_vmc_pkg.leg_tor = controller_.leg_ctrl->get_output().tor_left;
-            robot_ctrl->right_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_right;
-            robot_ctrl->right_vmc_pkg.leg_tor = controller_.leg_ctrl->get_output().tor_right;
-
-            robot_ctrl->vmc->tor_clc(robot_ctrl->left_vmc_pkg, p->left_leg, VMC::E_Left);
-            robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg, VMC::E_Right);
-
-            auto answer= robot_ctrl->vmc->tor_get();
-
-            motor_output_.dynamic_left = 0;
-            motor_output_.dynamic_right = 0;
-            motor_output_.tor_j1 = answer.p_right_tor2;
-            motor_output_.tor_j2 = answer.p_right_tor1;
-            motor_output_.tor_j3 = answer.p_left_tor1 ;
-            motor_output_.tor_j4 = answer.p_left_tor2 ;
-        }
-        else if(upstairs_.stage_ == E_LEG_SHOU && upstairs_.exe_cnt_ < STEP_LEG_SHOU_TIME) {
-            upstairs_.exe_cnt_++;
-            upstairs_.left_len_target = upstairs_.right_len_target = 0.38f -
-                (0.38f-0.17f)*upstairs_.exe_cnt_/STEP_FIRST_TIME;
-            controller_.leg_ctrl->left_len_update(p->left_leg,upstairs_.left_len_target);
-            controller_.leg_ctrl->right_len_update(p->right_leg,upstairs_.right_len_target);
-            controller_.leg_ctrl->left_deg_update(p->left_leg,-PI+10.0f/180.0f*PI);
-            controller_.leg_ctrl->right_deg_update(p->right_leg,-PI+10.0f/180.0f*PI);
-
-
-            //更新目标控制量
-            robot_ctrl->left_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_left;
-            robot_ctrl->left_vmc_pkg.leg_tor = controller_.leg_ctrl->get_output().tor_left;
-            robot_ctrl->right_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_right;
-            robot_ctrl->right_vmc_pkg.leg_tor = controller_.leg_ctrl->get_output().tor_right;
-
-            robot_ctrl->vmc->tor_clc(robot_ctrl->left_vmc_pkg, p->left_leg, VMC::E_Left);
-            robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg, VMC::E_Right);
-
-            auto answer= robot_ctrl->vmc->tor_get();
-
-            motor_output_.dynamic_left = 0;
-            motor_output_.dynamic_right = 0;
-            motor_output_.tor_j1 = answer.p_right_tor2;
-            motor_output_.tor_j2 = answer.p_right_tor1;
-            motor_output_.tor_j3 = answer.p_left_tor1 ;
-            motor_output_.tor_j4 = answer.p_left_tor2 ;
-        }
-        else if(upstairs_.stage_ == E_STAND_READY) {
-            upstairs_.left_len_target = upstairs_.right_len_target = 0.17;
-            controller_.leg_ctrl->left_len_update(p->left_leg,0.17);
-            controller_.leg_ctrl->right_len_update(p->right_leg,0.17);
-            controller_.leg_ctrl->left_deg_update(p->left_leg,PI/2);
-            controller_.leg_ctrl->right_deg_update(p->right_leg,PI/2);
-            //更新目标控制量
-            robot_ctrl->left_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_left;
-            robot_ctrl->left_vmc_pkg.leg_tor = controller_.leg_ctrl->get_output().tor_left;
-            robot_ctrl->right_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_right;
-            robot_ctrl->right_vmc_pkg.leg_tor = controller_.leg_ctrl->get_output().tor_right;
-
-            robot_ctrl->vmc->tor_clc(robot_ctrl->left_vmc_pkg, p->left_leg, VMC::E_Left);
-            robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg, VMC::E_Right);
-
-            auto answer= robot_ctrl->vmc->tor_get();
-
-            motor_output_.dynamic_left = 0.5;
-            motor_output_.dynamic_right = 0.5;
-            motor_output_.tor_j1 = answer.p_right_tor2;
-            motor_output_.tor_j2 = answer.p_right_tor1;
-            motor_output_.tor_j3 = answer.p_left_tor1 ;
-            motor_output_.tor_j4 = answer.p_left_tor2 ;
-
-        }
-
-        robot_snap->snap_clear_S();
-        robot_snap->snap_set_zero();
-
-    }
-
 }
 
 void app_coordinate::basic_lqr_ctrl(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl){
@@ -699,6 +474,7 @@ void app_coordinate::basic_lqr_ctrl(snap *robot_snap, mode_state_struct state,ct
     // controller_.lqr_controller->static_clc(delta);
 }
 
+//一种基本的VMC提交
 void app_coordinate::basic_vmc_update(snap *robot_snap,bool forward){
     auto p = robot_snap->current_snap_get();
     auto robot_ctrl = &controller_;
@@ -725,9 +501,9 @@ void app_coordinate::basic_vmc_update(snap *robot_snap,bool forward){
 
     robot_ctrl->vmc->tor_clc(robot_ctrl->left_vmc_pkg, p->left_leg, VMC::E_Left);
     robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg, VMC::E_Right);
-
 }
 
+//更新所有电机扭矩到准备区
 void app_coordinate::motor_tor_ready(){
     auto robot_ctrl = &controller_;
     auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
@@ -743,6 +519,7 @@ void app_coordinate::motor_tor_ready(){
     motor_output_.dynamic_right = right.wheel_balance + right.wheel_move;
 }
 
+//更新腿长相关内容
 void app_coordinate::target_update(snap *robot_snap,ctrl_struct ctrl){
     auto p = robot_snap->current_snap_get();
 
@@ -751,16 +528,5 @@ void app_coordinate::target_update(snap *robot_snap,ctrl_struct ctrl){
     else if(mode_state_.height_record < HEIGHT_MIN) mode_state_.height_record = HEIGHT_MIN;
     controller_.leg_ctrl->left_len_update(p->left_leg,mode_state_.height_record);
     controller_.leg_ctrl->right_len_update(p->right_leg,mode_state_.height_record);
-
 }
 
-bool app_coordinate::upstairs_judge(snap *robo_snap) {
-    float left_deg, right_deg;
-    left_deg = robo_snap->current_snap_get()->lqr_data.left_theta;
-    right_deg = robo_snap->current_snap_get()->lqr_data.right_theta;
-    if(left_deg > STEP_LIMIT_THETA && right_deg > STEP_LIMIT_THETA)
-        return true;
-    else
-        return false;
-
-}

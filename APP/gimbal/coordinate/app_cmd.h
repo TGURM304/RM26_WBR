@@ -79,6 +79,7 @@ typedef struct {
     float dot_S, delta_yaw_;
 }ibc_gimbal_send_pkg;
 typedef struct {
+    float vector_x,vector_y,vector_z;
     Coordinate::mode_state chassis_cmd_;
 }ibc_chassis_send_pkg;
 //最终的汇总的class,目前可以通过修改define来实现RC与裁判系统
@@ -107,7 +108,6 @@ public:
     void rc_update(const bsp_rc_data_t *rc);
     ibc_chassis_send_pkg* get_chassis_pkg();
     ibc_gimbal_send_pkg* get_gimbal_pkg();
-
 private:
     ibc_gimbal_send_pkg gimbal_pkg_ = {};
     ibc_chassis_send_pkg chassis_pkg_ = {};

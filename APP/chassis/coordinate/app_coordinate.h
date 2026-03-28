@@ -9,10 +9,9 @@
 #include "app_snap.h"
 #include "app_vmc.h"
 #include "bsp_rc.h"
-#include "app_biquad_filter.h"
 #include "app_dog_ctrl.h"
-#include "app_ibc.h"
 #include "app_behavior_define.h"
+#include "app_ibc.h"
 #include "app_support_clc.h"
 
 #include <vector>
@@ -75,6 +74,7 @@ namespace Coordinate {
         void init();
         void test_function(const bsp_rc_data_t *rc);
         void reset();
+        void out_side_cmd_update(IBC::ibc_gimbal gimbal);
         void inner_cmd_update();
     private:
 
@@ -94,13 +94,10 @@ namespace Coordinate {
         //可以选择性开关前馈，自动读取LQR中的内容
         void basic_vmc_update(snap *robot_snap, bool forward);
         void target_update(snap *robot_snap, ctrl_struct ctrl);
-        static bool upstairs_judge(snap *robo_snap);
         void motor_tor_ready();
         void motor_tor_update();
         void motor_rest();
 
-        void ibc_send_update(float vector_x, float vector_y, float vector_z, mode_state mode);
-        static std::pair<float32_t,float32_t> roll_feed(float32_t roll_rad, float32_t left_r, float32_t right_r, float32_t target_height);
         mode_state_struct mode_ptr_search();
         using BehaviorFunc = void (app_coordinate::*)(snap*,mode_state_struct,ctrl_struct);
 
@@ -125,8 +122,8 @@ namespace Coordinate {
         snap *robot_snap_ptr_ = nullptr;
 
         uint16_t send_cnt;
-        IBC::chassis chassis_send_;
-        app_msg_can_receiver<IBC::gimbal> ibc_gimbal_;
+        IBC::ibc_chassis chassis_send_;
+        app_msg_can_receiver<IBC::ibc_gimbal> ibc_gimbal_;
         support support_;
         uint16_t cnt_ = 0;
         int16_t protect_cnt_ = 0;

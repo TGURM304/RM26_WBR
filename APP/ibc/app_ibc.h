@@ -5,6 +5,8 @@
 #ifndef APP_IBC_H
 #define APP_IBC_H
 
+#include "app_behavior_define.h"
+
 #include <arm_math_types.h>
 #include <cstdint>
 #include "app_msg.h"
@@ -26,14 +28,14 @@
  */
 namespace IBC {
 typedef struct {
-    uint16_t vx,vy;
-    uint16_t spin_rad;
-    uint8_t switch_cmd;
-}gimbal;
+    float dot_S, delta_yaw;
+    Coordinate::mode_switch_cmd switch_cmd;
+    Coordinate::mode_state chassis_cmd;
+}ibc_gimbal;
 typedef struct {
-    float vector_x,vector_y,vector_z;
-    uint8_t mode;
-}chassis;
+    int16_t vector_x,vector_y,vector_z;
+    Coordinate::mode_state chassis_cmd_;
+}ibc_chassis;
 int16_t float32_to_int16(float32_t data, float data_max, float data_min);
 }
 

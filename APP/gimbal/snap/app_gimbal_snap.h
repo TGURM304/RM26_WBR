@@ -55,8 +55,8 @@ private:
     Motor::DJIMotor *fric_left_ptr_ = nullptr;
     Motor::DJIMotor *fric_right_ptr_ = nullptr;
     const app_ins_data_t *ins_ = nullptr;
-    IBC::gimbal gimbal_send_ = {};
-    app_msg_can_receiver<IBC::chassis> ibc_chassis;
+    IBC::ibc_gimbal gimbal_send_ = {};
+    app_msg_can_receiver<IBC::ibc_chassis> ibc_chassis;
 
 };
 }
