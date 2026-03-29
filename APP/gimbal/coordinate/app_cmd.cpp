@@ -33,8 +33,8 @@ void gimbal_ctrl::rc_update(const bsp_rc_data_t *rc) {
     cmd_.vx = rc->rc_l[0]/660.0f;
     cmd_.vy = rc->rc_l[1]/660.0f;
     cmd_.delta_body_yaw = rc->reserved/660.0f;
-    cmd_.delta_head_yaw = rc->rc_r[0]/660.0f;
-    cmd_.delta_pit = rc->rc_r[1]/660.0f;
+    cmd_.delta_head_yaw = rc->rc_r[0]*2/660.0f;
+    cmd_.delta_pit = rc->rc_r[1]*2/660.0f;
     if(rc->s_r == 1 || rc->s_r == 0)
         cmd_.shoot_flag = true;
 
@@ -52,7 +52,7 @@ void gimbal_ctrl::rc_update(const bsp_rc_data_t *rc) {
         flag_.gimbal_ctrl_ = false;
         flag_.auto_aim_gimbal_ = true;
     }
-    else if(rc->s_r == 1) {
+    else if(rc->s_l == 1) {
         flag_.gimbal_ctrl_ = true;
         flag_.auto_aim_gimbal_ = false;
     }

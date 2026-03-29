@@ -36,13 +36,12 @@ public:
     void head_relax();
     void head_update();
     void head_active();
-    void tick();
+    void head_output();
     void head_clear();
     float pid_pit_out_ = 0, pid_yaw_out_ = 0; //pit的输出值为扭矩单位Nm，yaw的输出为电压，单位为百分比-1~+1
 private:
     Motor::DJIMotor *yaw_motor_;
     Motor::DMMotor *pit_motor_;
-    bool head_active_flag = false;
     Controller::PID yaw_speed_, yaw_pos_;
     Filter::BiquadFilter yaw_out_filter_{ 100, 1000, Filter::E_LOW_PASS };
     snap *robo_snap_;

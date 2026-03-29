@@ -23,7 +23,6 @@ void Head::head_init(const Controller::PID& yaw_pos_param,
 }
 
 void Head::head_clear() {
-    head_active_flag = false;
     yaw_speed_.clear();
     yaw_pos_.clear();
     yaw_out_filter_.clear();
@@ -31,7 +30,6 @@ void Head::head_clear() {
 }
 
 void Head::head_pid_clc(float target_yaw, float target_pit) {
-    head_active_flag = true;
     head_update();
     float yaw_delta = robo_snap_->get_snap_pkg().ins_yaw -target_yaw;
     yaw_delta > PI ? yaw_delta -= 2*PI : (yaw_delta < -PI ? yaw_delta += 2*PI : 0);
@@ -52,15 +50,15 @@ void Head::head_pid_clc(float target_yaw, float target_pit) {
 }
 
 void Head::head_relax() {
-    head_active_flag = false;
-    pid_yaw_out_ = 0;
+    yaw_motor_->update(0);
+    pit_motor_->control(0,0,0,0,0);
+    pid_yaw_out_ = 0, pid_pit_out_ = 0;
 }
 
 void Head::head_active(){
     yaw_motor_->enable();
     pit_motor_->reset();
     pit_motor_->enable();
-    head_active_flag = true;
 }
 
 
@@ -69,13 +67,7 @@ void Head::head_update() {
     robo_snap_->snap_update();
 }
 
-void Head::tick(){
-    if(head_active_flag) {
-        yaw_motor_->update(pid_yaw_out_);
-        pit_motor_->control(head_ctrl_pkg_.pit_pos,0,40,2,0);
-    }
-    else {
-        yaw_motor_->update(0);
-        pit_motor_->control(0,0,0,0,0);
-    }
+void Head::head_output(){
+    yaw_motor_->update(pid_yaw_out_);
+    pit_motor_->control(head_ctrl_pkg_.pit_pos,0,40,2,0);
 }

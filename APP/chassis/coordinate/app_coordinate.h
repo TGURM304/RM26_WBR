@@ -127,6 +127,7 @@ namespace Coordinate {
         int16_t protect_cnt_ = 0;
         bool off_ground_flag_ = false;
         upstairs_struct upstairs_ = {};
+        float gimbal_yaw = 0;
     };
 }
 

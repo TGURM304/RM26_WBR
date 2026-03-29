@@ -5,7 +5,10 @@
 #include "app_coordinate.h"
 
 #include "bsp_uart.h"
+#include "robomaster.h"
 #include "robot_data.h"
+
+#include <future>
 using namespace Coordinate;
 
 void app_coordinate::tick() {
@@ -17,13 +20,9 @@ void app_coordinate::tick() {
     // (this->*behavior_table_[mode_state_.current_state_])(robot_snap_ptr_, mode_state_);
     //发送扭矩到关节模组，只能在这用
     motor_tor_update();
+    controller_.dog_ctrl->tick();
 
     auto snap = robot_snap_ptr_->current_snap_get()->lqr_data;
-    app_msg_vofa_send(E_UART_1,
-        upstairs_.exe_cnt_,
-        upstairs_.left_len_target,
-        upstairs_.right_len_target
-        );
 
     //按照频率发送内容,200Hz
     send_cnt++;
@@ -46,7 +45,7 @@ void app_coordinate::init(){
 void app_coordinate::test_function(const bsp_rc_data_t *rc){
     auto force = controller_.leg_ctrl->get_output();
 
-    out_side_cmd_update(ibc_gimbal_);
+    // out_side_cmd_update(ibc_gimbal_);
 
     tick();
 
@@ -54,24 +53,30 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
     mode_state_.last_state = mode_state_.current_state_;
     ctrl_struct test = {};
     test.speed = (rc->rc_r[1]*1.0f)/660.0f;
-    test.gry = -(rc->reserved*1.0f)/660.0f;
-    test.body_height = (rc->rc_l[1]*1.0f)/660.0f/5.0f;
+    test.gry = -(rc->reserved*6.0f)/660.0f;
+    test.body_height = (rc->rc_l[1]*1.0f)/660.0f;
+    test.ver_x =  (rc->rc_l[1]*2.0f)/660.0f;
+    test.ver_y = (rc->rc_l[0]*2.0f)/660.0f;
+    app_msg_vofa_send(E_UART_1,
+    controller_.left_vmc_pkg.force_L,
+    controller_.right_vmc_pkg.force_L,
+    controller_.leg_ctrl->get_output().force_left,
+    controller_.leg_ctrl->get_output().force_right,
+    mode_state_.height_record,
+    test.body_height
+    );
 
-    if(rc->s_l == 0 && rc->s_r == -1) {
-        mode_state_.current_state_ = E_PUT_BODY;
-        exe_put_body(robot_snap_ptr_,mode_state_,test);
+    if(rc->s_l == -1 && rc->s_r == 0) {
+        mode_state_.current_state_ = E_DOG;
+        exe_dog(robot_snap_ptr_,mode_state_,test);
     }
-    else if(rc->s_l == 1 && (rc->s_r == -1)) {
+    else if(rc->s_l == 1 && rc->s_r == 0) {
         mode_state_.current_state_ = E_PUT_LEG;
         exe_put_leg(robot_snap_ptr_,mode_state_,test);
     }
-    else if(rc->s_l == 1 && rc->s_r == 0) {
+    else if(rc->s_l == 1 && rc->s_r == 1) {
         mode_state_.current_state_ = E_LQR;
         exe_lqr(robot_snap_ptr_,mode_state_,test);
-    }
-    else if(rc->s_l == 1 && (rc->s_r == 1)) {
-        mode_state_.current_state_ = E_UPSTAIRS;
-        exe_upstairs(robot_snap_ptr_,mode_state_,test);
     }
     else {
         mode_state_.current_state_ = E_WAITING;
@@ -96,7 +101,7 @@ void app_coordinate::out_side_cmd_update(app_msg_can_receiver<IBC::ibc_gimbal> g
     mode_state_.extern_cmd_ = gimbal()->switch_cmd;
     mode_state_.delta_S = gimbal()->dot_S;
     mode_state_.delta_yaw = gimbal()->delta_yaw;
-    mode_state_.height_record = gimbal()->height;
+    // mode_state_.height_record = gimbal()->height;
 }
 
 
@@ -214,7 +219,7 @@ void app_coordinate::exe_put_leg(snap *robot_snap, mode_state_struct state,ctrl_
     auto robot_ctrl = &controller_;
     auto p = robot_snap->current_snap_get();
 
-    if(     (robot_ctrl->leg_ctrl->left_flag == LegController::E_SOFT ||
+    if((robot_ctrl->leg_ctrl->left_flag == LegController::E_SOFT ||
             robot_ctrl->leg_ctrl->right_flag == LegController::E_SOFT)) {
         robot_ctrl->leg_ctrl->left_flag = LegController::E_HARD;
         robot_ctrl->leg_ctrl->right_flag = LegController::E_HARD;
@@ -324,7 +329,6 @@ void app_coordinate::exe_chair(snap *robot_snap, mode_state_struct state,ctrl_st
 void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl){
 
     auto p = robot_snap->current_snap_get();
-
     // 首次进入lqr模块的时候的进行数据净化
      if(state.last_state != state.current_state_ && state.current_state_ == E_LQR) {
          LQR_target_data.S = 0;
@@ -346,32 +350,89 @@ void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_stru
 
     //更新到目标输出中
     motor_tor_ready();
-    app_msg_vofa_send(E_UART_1,
-        mode_state_.height_record,
-        p->lqr_data.left_theta);
 }
 
 //土狗模式部分
 void app_coordinate::exe_dog(snap *robot_snap, mode_state_struct state, ctrl_struct ctrl){
-    // if(state.last_state != E_DOG && state.current_state_ == E_DOG) {
-    //     controller_.dog_ctrl->clear();
-    // }
+    if(state.last_state != E_DOG && state.current_state_ == E_DOG) {
+        controller_.dog_ctrl->clear();
+    }
     auto p = robot_snap->current_snap_get();
-    //分解合成目标速度
-    //当角度误差较小的时候进行（小于30°）的时候进行cos计算
+    auto robot_ctrl = &controller_;
+
 
     //step1: 计算目标速度角度和大小
-    float ver = ctrl.ver_y;
-    float gry = ctrl.gry;
+    float target_yaw = gimbal_yaw;
+    target_yaw = gimbal_yaw + atan2f(ctrl.ver_y,ctrl.ver_x);
+    //我们先默认目标姿态为0，后续可以加上云台
+    float delta_yaw = target_yaw - robot_snap->current_snap_get()->robot_raw_data.body_phi;
+    if(delta_yaw > PI) delta_yaw -= 2*PI;
+    else if(delta_yaw < -PI) delta_yaw += 2*PI;
+    float cor_gry = delta_yaw*10.0f;
+    if(abs(cor_gry) > 10) {
+        cor_gry = cor_gry > 0? 10:-10;
+    }
+    float ver = sqrtf(ctrl.ver_x*ctrl.ver_x + ctrl.ver_y*ctrl.ver_y);
+    if(abs(delta_yaw) < PI/6) {
+        ver = ver*cosf(delta_yaw);
+    }
 
-    controller_.dog_ctrl->speed_update(ver,gry,
+    bool ready_flag = false;
+    if(p->left_leg.theta > 0.8 && p->left_leg.theta < 1.2
+        && p->right_leg.theta > 0.8 && p->right_leg.theta < 1.2) {
+        ready_flag = true;
+    }
+    else {
+        if(p->left_leg.theta >1.2 || p->left_leg.theta < 0.8) {
+            controller_.leg_ctrl->left_omega_only(p->left_leg,-1);
+            controller_.leg_ctrl->left_len_update(p->left_leg,0.17);
+        }
+        else {
+            controller_.leg_ctrl->left_deg_update(p->left_leg,1.06);
+            controller_.leg_ctrl->left_len_update(p->left_leg,0.17);
+        }
+        if(p->right_leg.theta >1.2 || p->right_leg.theta < 0.8) {
+            controller_.leg_ctrl->right_omega_only(p->right_leg,-1);
+            controller_.leg_ctrl->right_len_update(p->right_leg,0.17);
+        }
+        else {
+            controller_.leg_ctrl->right_deg_update(p->right_leg,1.06);
+            controller_.leg_ctrl->right_len_update(p->right_leg,0.17);
+        }    }
+    if(ready_flag == true) {
+        controller_.leg_ctrl->left_deg_update(p->left_leg,1.06);
+        controller_.leg_ctrl->left_len_update(p->left_leg,0.17);
+        controller_.leg_ctrl->right_deg_update(p->right_leg,1.06);
+        controller_.leg_ctrl->right_len_update(p->right_leg,0.17);
+    }
+
+    robot_ctrl->left_vmc_pkg.force_y = 0;
+    robot_ctrl->left_vmc_pkg.force_x = 0;
+    robot_ctrl->right_vmc_pkg.force_y = 0;
+    robot_ctrl->right_vmc_pkg.force_x = 0;
+    robot_ctrl->left_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_left;
+    robot_ctrl->left_vmc_pkg.leg_tor = controller_.leg_ctrl->get_output().tor_left;
+    robot_ctrl->right_vmc_pkg.force_L = controller_.leg_ctrl->get_output().force_right;
+    robot_ctrl->right_vmc_pkg.leg_tor = controller_.leg_ctrl->get_output().tor_right;
+
+
+    robot_ctrl->vmc->tor_clc(robot_ctrl->left_vmc_pkg, p->left_leg, VMC::E_Left);
+    robot_ctrl->vmc->tor_clc(robot_ctrl->right_vmc_pkg,p->right_leg, VMC::E_Right);
+
+
+    if(ready_flag == false) {
+        ver = 0;
+        cor_gry = 0;
+    }
+    controller_.dog_ctrl->speed_update(ver,cor_gry,
         p->robot_raw_data.speed_left,p->robot_raw_data.speed_right);
 
     //step3: 拉取数据并且输出
-    motor_output_.tor_j1 = 0;
-    motor_output_.tor_j2 = 0;
-    motor_output_.tor_j3 = 0;
-    motor_output_.tor_j4 = 0;
+    auto answer= robot_ctrl->vmc->tor_get();
+    motor_output_.tor_j1 = answer.p_right_tor2;
+    motor_output_.tor_j2 = answer.p_right_tor1;
+    motor_output_.tor_j3 = answer.p_left_tor1 ;
+    motor_output_.tor_j4 = answer.p_left_tor2 ;
 
     auto output = controller_.dog_ctrl->output_get();
     motor_output_.dynamic_left = output.first;
@@ -433,26 +494,7 @@ void app_coordinate::basic_lqr_ctrl(snap *robot_snap, mode_state_struct state,ct
     delta[8] =  0                       - (p->lqr_data.body_theta      );
     delta[9] =  0                       - (p->lqr_data.body_dot_theta  );
 
-    //离地保护相关代码
-    // if(off_ground_flag_ == true && (protect_cnt_ >= 2000 || protect_cnt_ < 0)) {
-    //     delta[0] = 0;
-    //     delta[1] = 0;
-    //     delta[2] = 0;
-    //     delta[2] = 0;
-    //     delta[3] = 0;
-    //     delta[4] = 0;
-    //     delta[5] = 0;
-    //     delta[6] = 0;
-    //     delta[7] = 0;
-    //     delta[8] = 0;
-    //     delta[9] = 0;
-    //     protect_cnt_ = -10;
-    //     robot_snap->snap_clear_S();
-    //     robot_snap->snap_set_zero();
-    // }
-
     controller_.lqr_controller->fit_clc(delta,p->left_leg.L0,p->right_leg.L0);
-    // controller_.lqr_controller->static_clc(delta);
 }
 
 //一种基本的VMC提交

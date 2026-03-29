@@ -12,8 +12,9 @@ namespace LegController {
         //控制机体旋转角速度和前进速度
     public:
         wheel_speed_controller() = default;
-        explicit wheel_speed_controller(const Controller::PID::pid_param_t &wheel_speed)
-            :left_speed_pid(wheel_speed), right_speed_pid(wheel_speed) {
+        explicit wheel_speed_controller(const Controller::PID::pid_param_t &wheel_speed_left,
+            const Controller::PID::pid_param_t &wheel_speed_right)
+            :left_speed_pid(wheel_speed_left), right_speed_pid(wheel_speed_right) {
         }
         void speed_update(float target_forward, float target_body_gry,
             float left_current_speed, float right_current_speed);// forward:前进，单位m/s, spin:自转，单位rad/s

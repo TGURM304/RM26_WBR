@@ -73,7 +73,9 @@ LegController::app_leg_ctrl leg_controller(
 {50,0,1,5,0},
 {1,4.0/1000.0f,0.5,16,12},
 {10,0,0,5,3});
-LegController::wheel_speed_controller dog_controller({.Kp = 2.5, .Ki = 0.05, .Kd = 0, .out_limit = 2.5, .iout_limit = 0.5});
+LegController::wheel_speed_controller dog_controller
+({.Kp = 4, .Ki = 0.05, .Kd = 0, .out_limit = 2.5, .iout_limit = 0.5},
+    {.Kp = 5, .Ki = 0.08, .Kd = 0, .out_limit = 2.5, .iout_limit = 0.9});
 
 VMC::app_vmc vmc;
 LQR::LQR_controller lqr_controller((float32_t *)K22,(float32_t *)K_Fit_Coefficients);
@@ -114,7 +116,6 @@ void app_chassis_task(void *args) {
 	while(true) {
 
         my_coordinate.test_function(rc);
-
 	    OS::Task::SleepMilliseconds(1);
 	}
 }
