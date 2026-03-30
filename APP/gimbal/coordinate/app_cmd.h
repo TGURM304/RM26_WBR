@@ -6,6 +6,7 @@
 #define APP_CMD_H
 
 #include "app_behavior_define.h"
+#include "app_keyboard.h"
 #include "app_shoot_controller.h"
 #include "bsp_rc.h"
 /**
@@ -67,21 +68,7 @@ typedef struct {
 }ibc_chassis_send_pkg;
 //最终的汇总的class,目前可以通过修改define来实现RC与裁判系统
 
-typedef struct {
-    //基础移动与开火
-    float mouse_delta_x, mouse_delta_y;
-    bool mouse_left, mouse_right;
-    bool key_w, key_a, key_s, key_d;
-    //特殊功能,为了防止误触，需要长按0.5S
-    bool key_c;//超电
-    bool key_v;//摆正机体位置
 
-    bool key_q;//放置腿位姿
-    bool key_e;//lqr启动
-    bool key_r;//切换至土狗
-
-    bool key_f;//切换开火模式
-}keybroad_pkg;
 class gimbal_ctrl{
 public:
     gimbal_ctrl():ibc_chassis_(E_CAN3,CHASSIS_ID) {
@@ -89,7 +76,7 @@ public:
     void init();
     void tick();
     void reset();
-    void keyboard_update(keybroad_pkg pkg_);
+    void keyboard_update(Gimbal::keyboard_cmd_pkg pkg_);
     void rc_update(const bsp_rc_data_t *rc);
     ibc_chassis_send_pkg* get_chassis_pkg();
     ibc_gimbal_send_pkg* get_gimbal_pkg();

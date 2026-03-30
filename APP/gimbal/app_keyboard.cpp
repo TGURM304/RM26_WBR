@@ -18,8 +18,12 @@ void Gimbal::keyboard::update() {
     constexpr float kSpinSpeedNormal = 2.0f;
     constexpr float kSpinSpeedFast   = 4.0f;
 
-    constexpr float kHeightStep = 0.0001f;
+    constexpr float kHeightStep = 0.5f;
 
+    constexpr float mouse_K = 1/600.0f;
+
+    pkg_.mouse_x = -rc_data_->mouse_x * mouse_K;
+    pkg_.mouse_y = -rc_data_->mouse_y * mouse_K;
     // 上一帧键盘状态
     bsp_rc_keyboard_u last_keyboard{};
     last_keyboard.raw = keyboard_raw.raw;

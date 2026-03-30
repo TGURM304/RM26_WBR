@@ -4,7 +4,6 @@
 
 #include "app_gimbal_coordinate.h"
 
-#include "robomaster.h"
 #include "robot_data.h"
 
 PID yaw_pos(25, 0, 0, 15, 0);
@@ -75,7 +74,7 @@ void gimbal_coordinate::update_rc(const bsp_rc_data_t *rc) {
     ctrl_.rc_update(rc);
 }
 
-void gimbal_coordinate::update_keyboard(Gimbal_cmd::keybroad_pkg pkg_) {
+void gimbal_coordinate::update_keyboard(keyboard_cmd_pkg pkg_) {
     ctrl_.keyboard_update(pkg_);
 }
 

@@ -74,7 +74,7 @@ void app_gimbal_task(void *args) {
         auto temp = my_keyboard.get_pkg();
 
         robo_snap.snap_update();
-        coordinate.update_rc(rc);
+        coordinate.update_keyboard(temp);
 
         coordinate.tick();
 

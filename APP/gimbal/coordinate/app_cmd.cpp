@@ -24,7 +24,16 @@ void gimbal_ctrl::reset() {
     flag_.fric_mode_ = Gimbal::fric_mode_e::E_FRIC_REST;
 }
 
-void gimbal_ctrl::keyboard_update(keybroad_pkg pkg_) {
+void gimbal_ctrl::keyboard_update(Gimbal::keyboard_cmd_pkg pkg_) {
+    cmd_.vx = pkg_.vx;
+    cmd_.vy = pkg_.vy;
+    cmd_.delta_body_yaw = pkg_.spin;
+    cmd_.delta_head_yaw = pkg_.mouse_x;
+    cmd_.delta_pit = pkg_.mouse_y;
+    flag_.trigger_mode_ = Gimbal::trigger_mode_e::E_TRIGGER_REST;
+    flag_.fric_mode_ = Gimbal::fric_mode_e::E_FRIC_REST;
+    flag_.gimbal_ctrl_ = true;
+    flag_.auto_aim_gimbal_ = false;
 }
 
 void gimbal_ctrl::rc_update(const bsp_rc_data_t *rc) {

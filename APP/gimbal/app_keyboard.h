@@ -4,7 +4,7 @@
 
 #ifndef APP_KEYBOARD_H
 #define APP_KEYBOARD_H
-#include "app_gimbal_coordinate.h"
+#include "bsp_rc.h"
 #include "robomaster.h"
 
 namespace Gimbal {
@@ -17,6 +17,7 @@ typedef struct {
     float vx,vy;
     float target_height;
     float spin;
+    float mouse_x, mouse_y;
 }keyboard_cmd_pkg;
 class keyboard {
 public:
