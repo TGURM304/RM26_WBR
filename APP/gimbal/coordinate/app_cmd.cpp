@@ -24,16 +24,38 @@ void gimbal_ctrl::reset() {
     flag_.fric_mode_ = Gimbal::fric_mode_e::E_FRIC_REST;
 }
 
+//根据键盘的pkg更新控制命令的数值和flag
+//键盘pkg已经经过了一次处理，直接映射到控制命令和flag上就行了
 void gimbal_ctrl::keyboard_update(Gimbal::keyboard_cmd_pkg pkg_) {
+    //基础的运动控制系统
     cmd_.vx = pkg_.vx;
     cmd_.vy = pkg_.vy;
     cmd_.delta_body_yaw = pkg_.spin;
     cmd_.delta_head_yaw = pkg_.mouse_x;
     cmd_.delta_pit = pkg_.mouse_y;
-    flag_.trigger_mode_ = Gimbal::trigger_mode_e::E_TRIGGER_REST;
-    flag_.fric_mode_ = Gimbal::fric_mode_e::E_FRIC_REST;
+
+    //几个flag的更新
+    //摩檫轮的更新
+    if(pkg_.fric_flag == true)
+        flag_.fric_mode_ = Gimbal::fric_mode_e::E_FRIC_FAST;
+    else
+        flag_.fric_mode_ = Gimbal::fric_mode_e::E_FRIC_REST;
+
+    //拨弹盘的更新,分为三档，0/1/2分别对应不同射速
+    if(pkg_.shoot_fre == 0)
+        flag_.trigger_mode_ = Gimbal::trigger_mode_e::E_TRIGGER_REST;
+    else if(pkg_.shoot_fre == 1)
+        flag_.trigger_mode_ = Gimbal::trigger_mode_e::E_TRIGGER_SLOW;
+    else if(pkg_.shoot_fre == 2)
+        flag_.trigger_mode_ = Gimbal::trigger_mode_e::E_TRIGGER_FAST;
+
+    //自瞄的更新
+    flag_.auto_aim_gimbal_ = pkg_.auto_aim_flag;
+    flag_.shoot_ctrl_ = pkg_.player_fire;
+
+
+    //此处是云台的控制启用，如果云台控制启用了才能完成后续内容，这里就默认开启
     flag_.gimbal_ctrl_ = true;
-    flag_.auto_aim_gimbal_ = false;
 }
 
 void gimbal_ctrl::rc_update(const bsp_rc_data_t *rc) {
@@ -67,15 +89,12 @@ void gimbal_ctrl::rc_update(const bsp_rc_data_t *rc) {
     //flag发射机构控制逻辑
     if(rc->s_r == 0) {
         flag_.shoot_ctrl_ = false;
-        flag_.auto_aim_shoot_ = false;
     }
     else if(rc->s_r == 1) {
         flag_.shoot_ctrl_ = true;
-        flag_.auto_aim_shoot_ = false;
     }
     else if(rc->s_r == -1) {
         flag_.shoot_ctrl_ = false;
-        flag_.auto_aim_shoot_ = true;
     }
 
     flag_.trigger_mode_ = Gimbal::trigger_mode_e::E_TRIGGER_REST;

@@ -75,14 +75,8 @@ void app_gimbal_task(void *args) {
 
         robo_snap.snap_update();
         coordinate.update_keyboard(temp);
-
         coordinate.tick();
 
-        robomaster::image::rc::data()->l[0];
-        bsp_uart_printf(E_UART_1,"%f,%f\r\n",
-            (float)robomaster::image::rc::data()->keyboard,
-            1.0f
-           );
 
         OS::Task::SleepMilliseconds(1);
     }

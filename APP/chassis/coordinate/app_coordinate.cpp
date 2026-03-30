@@ -55,14 +55,6 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
     test.body_height = (rc->rc_l[1]*1.0f)/660.0f;
     test.ver_x =  (rc->rc_r[1]*2.0f)/660.0f;
     test.ver_y = (rc->rc_r[0]*2.0f)/660.0f;
-    app_msg_vofa_send(E_UART_1,
-    controller_.left_vmc_pkg.force_L,
-    controller_.right_vmc_pkg.force_L,
-    controller_.leg_ctrl->get_output().force_left,
-    controller_.leg_ctrl->get_output().force_right,
-    mode_state_.height_record,
-    test.body_height
-    );
 
     if(rc->s_l == -1 && rc->s_r == 0) {
         mode_state_.current_state_ = E_DOG;
@@ -96,9 +88,7 @@ void app_coordinate::motor_tor_update(){
 
 //更新外部命令
 void app_coordinate::out_side_cmd_update(app_msg_can_receiver<IBC::ibc_gimbal> gimbal){
-    mode_state_.extern_cmd_ = gimbal()->switch_cmd;
-    mode_state_.delta_S = gimbal()->dot_S;
-    mode_state_.delta_yaw = gimbal()->delta_yaw;
+
     // mode_state_.height_record = gimbal()->height;
 }
 
@@ -464,8 +454,11 @@ void app_coordinate::basic_lqr_ctrl(snap *robot_snap, mode_state_struct state,ct
     auto p = robot_snap->current_snap_get();
     auto zero_p = robot_snap->zero_snap_get();
 
-
+    //这里的phi是机体的基准角度，在这之上叠加一ver_deg用于基于当前状态进行左右平移
     LQR_target_data.phi += ctrl.gry/1000.0f;
+    LQR_target_data.phi > PI? LQR_target_data.phi -= 2*PI
+        :(LQR_target_data.phi < -PI? LQR_target_data.phi += 2*PI:0);
+    //target_ver的计算：根据当前的速度方向和云台的偏转角度来计算出一个目标速度，云台偏转越大，目标速度越小，偏转为0时目标速度最大
     float target_ver = 0;
     float ver_deg = atan2f(ctrl.ver_y,ctrl.ver_x);
     float target_phi = LQR_target_data.phi + ver_deg;

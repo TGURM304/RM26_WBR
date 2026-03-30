@@ -18,9 +18,9 @@ void Gimbal::keyboard::update() {
     constexpr float kSpinSpeedNormal = 2.0f;
     constexpr float kSpinSpeedFast   = 4.0f;
 
-    constexpr float kHeightStep = 0.5f;
+    constexpr float kHeightStep = 0.0001f;
 
-    constexpr float mouse_K = 1/600.0f;
+    constexpr float mouse_K = 1/30.0f;
 
     pkg_.mouse_x = -rc_data_->mouse_x * mouse_K;
     pkg_.mouse_y = -rc_data_->mouse_y * mouse_K;
@@ -114,12 +114,12 @@ void Gimbal::keyboard::update() {
     }
 
     // =========================
-    // 7. target_height：G 抬高，B 降低
+    // 7. target_height：shift+G 抬高，shift+B 降低
     // 这里写成“每次 update 累加/累减一步”
     // =========================
-    if (key.g && !key.b) {
+    if ((key.g && key.shift) && !key.b) {
         pkg_.target_height += kHeightStep;
-    } else if (key.b && !key.g) {
+    } else if ((key.b && key.shift) && !key.g) {
         pkg_.target_height -= kHeightStep;
     }
     pkg_.target_height > HEIGHT_MAX?
@@ -133,4 +133,9 @@ void Gimbal::keyboard::update() {
     // =========================
     pkg_.player_fire = rc_data_->mouse_l;
 
+    // =========================
+    // 8. player_fire：玩家开火命令
+    // 这里按常见逻辑用鼠标左键
+    // 如果你想把 key_shoot 也算进去，可以保留下面这种写法
+    // =========================
 }

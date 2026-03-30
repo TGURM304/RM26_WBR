@@ -28,11 +28,12 @@
  */
 namespace IBC {
 typedef struct {
-    float dot_S, delta_yaw, height;
+    uint16_t vx,vy,gry,height;//8Byte
     Coordinate::mode_switch_cmd switch_cmd;
 }ibc_gimbal;
 typedef struct {
-    uint16_t vector_x,vector_y,vector_z;
+    uint16_t vector_x,vector_y,vector_z;//6Byte
+    uint16_t body_phi;//2Byte
     Coordinate::mode_state chassis_cmd_;
 }ibc_chassis;
 uint16_t float32_to_uint16(float32_t data, float data_max, float data_min);

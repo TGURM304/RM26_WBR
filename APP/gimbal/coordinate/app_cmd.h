@@ -48,7 +48,6 @@ typedef struct {
     bool gimbal_ctrl_;//是否启用普通控制
     bool shoot_ctrl_;//是否启用手动发射
     bool auto_aim_gimbal_;//是否启用自瞄云台
-    bool auto_aim_shoot_;//是否启用自瞄发弹
     Coordinate::mode_state chassis_sate_;//期望的state
     Coordinate::mode_switch_cmd switch_cmd_;//切换的命令
     Gimbal::trigger_mode_e trigger_mode_;//拨弹盘速度

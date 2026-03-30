@@ -22,7 +22,6 @@ public:
     void reset();
     void update_rc(const bsp_rc_data_t *rc);
     void update_keyboard(keyboard_cmd_pkg pkg_);
-    void update_video();
     Gimbal_cmd::gimbal_ctrl ctrl_;
 
 private:

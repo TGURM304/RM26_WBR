@@ -7,6 +7,7 @@
 uint16_t IBC::float32_to_uint16(float32_t data, float data_max, float data_min) {
     float data_range = data_max - data_min;
     float percent = (data - data_min)/data_range;
+    percent > 1.0f? percent = 1.0f : (percent < 0.0f? percent = 0.0f : 0);
     uint16_t answer = (uint16_t)(65536.0f*percent);
     return answer;
 }
