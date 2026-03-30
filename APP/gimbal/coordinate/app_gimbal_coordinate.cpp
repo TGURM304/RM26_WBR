@@ -75,7 +75,9 @@ void gimbal_coordinate::update_rc(const bsp_rc_data_t *rc) {
     ctrl_.rc_update(rc);
 }
 
-void gimbal_coordinate::update_mouse(Gimbal_cmd::mouse_pkg pkg_) { }
+void gimbal_coordinate::update_keyboard(Gimbal_cmd::keybroad_pkg pkg_) {
+    ctrl_.keyboard_update(pkg_);
+}
 
 void gimbal_coordinate::update_video(){
 

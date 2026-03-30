@@ -8,6 +8,7 @@
 #include "app_gimbal_coordinate.h"
 #include "app_shoot_controller.h"
 #include "app_head_controller.h"
+#include "app_keyboard.h"
 #include "bsp_uart.h"
 #include "dev_motor_dm.h"
 #include "app_second_order.h"
@@ -49,7 +50,6 @@ Motor::DMMotor pit_motor("pit_motor",
 auto ins = app_ins_data();
 auto rc  = bsp_rc_data();
 
-
 Gimbal::snap robo_snap(
     &yaw_motor, &pit_motor, &trigger_motor, &left_shoot_motor, &right_shoot_motor, ins, PITCH_ZERO_POINT, 0.0f);
 Gimbal::Head my_head(&yaw_motor, &pit_motor, &robo_snap);
@@ -65,14 +65,24 @@ void app_gimbal_task(void *args) {
     pit_motor.init();
     pit_motor.enable();
 
+    robomaster::image::init(E_UART_7);
+    auto image_rc = robomaster::image::rc::data();
+    Gimbal::keyboard my_keyboard(image_rc);
+
     while(true) {
+        my_keyboard.update();
+        auto temp = my_keyboard.get_pkg();
+
         robo_snap.snap_update();
         coordinate.update_rc(rc);
 
         coordinate.tick();
+
+        robomaster::image::rc::data()->l[0];
         bsp_uart_printf(E_UART_1,"%f,%f\r\n",
-            coordinate.ctrl_.get_cmd()->delta_pit,
-            coordinate.ctrl_.get_cmd()->delta_head_yaw);
+            (float)robomaster::image::rc::data()->keyboard,
+            1.0f
+           );
 
         OS::Task::SleepMilliseconds(1);
     }

@@ -81,7 +81,7 @@ typedef struct {
     bool key_r;//切换至土狗
 
     bool key_f;//切换开火模式
-}mouse_pkg;
+}keybroad_pkg;
 class gimbal_ctrl{
 public:
     gimbal_ctrl():ibc_chassis_(E_CAN3,CHASSIS_ID) {
@@ -89,7 +89,7 @@ public:
     void init();
     void tick();
     void reset();
-    void mouse_update(mouse_pkg pkg_);
+    void keyboard_update(keybroad_pkg pkg_);
     void rc_update(const bsp_rc_data_t *rc);
     ibc_chassis_send_pkg* get_chassis_pkg();
     ibc_gimbal_send_pkg* get_gimbal_pkg();

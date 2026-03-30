@@ -24,8 +24,7 @@ void gimbal_ctrl::reset() {
     flag_.fric_mode_ = Gimbal::fric_mode_e::E_FRIC_REST;
 }
 
-void gimbal_ctrl::mouse_update(mouse_pkg pkg_) {
-
+void gimbal_ctrl::keyboard_update(keybroad_pkg pkg_) {
 }
 
 void gimbal_ctrl::rc_update(const bsp_rc_data_t *rc) {

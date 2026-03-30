@@ -21,7 +21,7 @@ public:
     void tick();
     void reset();
     void update_rc(const bsp_rc_data_t *rc);
-    void update_mouse(Gimbal_cmd::mouse_pkg pkg_);
+    void update_keyboard(Gimbal_cmd::keybroad_pkg pkg_);
     void update_video();
     Gimbal_cmd::gimbal_ctrl ctrl_;
 

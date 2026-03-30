@@ -52,11 +52,9 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
     robot_snap_ptr_->snap_update();
     mode_state_.last_state = mode_state_.current_state_;
     ctrl_struct test = {};
-    test.speed = (rc->rc_r[1]*1.0f)/660.0f;
-    test.gry = -(rc->reserved*6.0f)/660.0f;
     test.body_height = (rc->rc_l[1]*1.0f)/660.0f;
-    test.ver_x =  (rc->rc_l[1]*2.0f)/660.0f;
-    test.ver_y = (rc->rc_l[0]*2.0f)/660.0f;
+    test.ver_x =  (rc->rc_r[1]*2.0f)/660.0f;
+    test.ver_y = (rc->rc_r[0]*2.0f)/660.0f;
     app_msg_vofa_send(E_UART_1,
     controller_.left_vmc_pkg.force_L,
     controller_.right_vmc_pkg.force_L,
@@ -466,10 +464,29 @@ void app_coordinate::basic_lqr_ctrl(snap *robot_snap, mode_state_struct state,ct
     auto p = robot_snap->current_snap_get();
     auto zero_p = robot_snap->zero_snap_get();
 
-    LQR_target_data.S += ctrl.speed/1000.0f;
 
-    LQR_target_data.dot_S = ctrl.speed;
     LQR_target_data.phi += ctrl.gry/1000.0f;
+    float target_ver = 0;
+    float ver_deg = atan2f(ctrl.ver_y,ctrl.ver_x);
+    float target_phi = LQR_target_data.phi + ver_deg;
+    //把转换后的目标角度转换到[-PI,PI]范围内
+    target_phi > PI? target_phi -= 2*PI:(target_phi < -PI? target_phi += 2*PI:0);
+    //把差值转换到[-PI,PI]范围内（优弧）
+    float delta_phi = target_phi
+        - (p->robot_raw_data.body_phi + zero_p->robot_raw_data.body_phi);
+    if(delta_phi > PI) delta_phi -= 2*PI;
+    else if(delta_phi < -PI) delta_phi += 2*PI;
+    //对delta_phi进行限制，防止过大的转向
+    if(abs(delta_phi) > PI/6) {
+        delta_phi = delta_phi > 0? PI/6:-PI/6;
+        target_ver = 0;
+    }
+    else {
+        target_ver = sqrtf(ctrl.ver_x*ctrl.ver_x + ctrl.ver_y*ctrl.ver_y)*cosf(delta_phi);
+    }
+
+    LQR_target_data.S += target_ver/1000.0f;
+    LQR_target_data.dot_S = target_ver;
 
     LQR_target_data.phi > PI? LQR_target_data.phi -= 2*PI:(LQR_target_data.phi < -PI? LQR_target_data.phi += 2*PI:0);
     LQR_target_data.dot_phi = ctrl.gry;
@@ -480,12 +497,13 @@ void app_coordinate::basic_lqr_ctrl(snap *robot_snap, mode_state_struct state,ct
 
     float32_t delta[10];
     delta[0] =  LQR_target_data.S       - (p->lqr_data.S                    -   zero_p->lqr_data.S - dis);
-    delta[1] =  LQR_target_data.dot_S    - (p->lqr_data.dot_S                   -   zero_p->lqr_data.dot_S);
-    float temp = (p->lqr_data.phi              -zero_p->lqr_data.phi            );
-    temp > PI? temp -= 2*PI:(temp < -PI? temp += 2*PI:0);
-    delta[2] =  LQR_target_data.phi     - temp;
-    delta[2] > PI? delta[2] -= 2*PI:(delta[2] < -PI? delta[2] += 2*PI:0);
-    delta[2] = (((delta[2]) > (1)) ? (1) : (((delta[2]) < -(1)) ? -(1) : (delta[2])));
+    delta[1] =  LQR_target_data.dot_S    - (p->lqr_data.dot_S-   zero_p->lqr_data.dot_S);
+    delta[2] =  delta_phi;
+    // float temp = (p->lqr_data.phi              -zero_p->lqr_data.phi            );
+    // temp > PI? temp -= 2*PI:(temp < -PI? temp += 2*PI:0);
+    // delta[2] =  LQR_target_data.phi     - temp;
+    // delta[2] > PI? delta[2] -= 2*PI:(delta[2] < -PI? delta[2] += 2*PI:0);
+    // delta[2] = (((delta[2]) > (1)) ? (1) : (((delta[2]) < -(1)) ? -(1) : (delta[2])));
     delta[3] =  LQR_target_data.dot_phi  - (p->lqr_data.dot_phi          -zero_p->lqr_data.dot_phi        );
     delta[4] =  0                       - (p->lqr_data.left_theta      );
     delta[5] =  0                       - (p->lqr_data.left_dot_theta  );
