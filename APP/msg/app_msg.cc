@@ -23,7 +23,6 @@ void can_msg_task(void *args) {
         while(can_msg_q_.size() and count++ < MSG_CAN_LIMIT_PER_MILLISECOND) {
             can_msg_q_.receive(msg);
             bsp_can_send(msg.port, msg.id, msg.data.begin());
-            OS::Task::Yield();
         }
         OS::Task::SleepMilliseconds(1);
     }
@@ -38,7 +37,7 @@ void app_msg_can_send(bsp_can_e e, uint32_t id, uint8_t *s) {
         .data = data
     });
     if(can_msg_task_.handle_ == nullptr) {
-        can_msg_task_.Create(can_msg_task, static_cast <void *> (nullptr), "msg_can", 512, OS::Task::MEDIUM);
+        can_msg_task_.Create(can_msg_task, static_cast <void *> (nullptr), "msg_can", 512, OS::Task::HIGH);
     }
 }
 

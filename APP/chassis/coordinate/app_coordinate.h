@@ -71,10 +71,12 @@ namespace Coordinate {
         };
         void tick();
         void init();
-        void test_function(const bsp_rc_data_t *rc);
+        void test_function(IBC::ibc_gimbal_data* gimbal_data);
         void reset();
         void out_side_cmd_update(app_msg_can_receiver<IBC::ibc_gimbal> gimbal);
         void inner_cmd_update();
+        snap *robot_snap_ptr_ = nullptr;
+
     private:
 
         void exe_any                (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
@@ -118,7 +120,6 @@ namespace Coordinate {
         component motor_component_ = {};
         Relay::relay_lqr LQR_target_data = {};
         mode_state_struct mode_state_ = {};
-        snap *robot_snap_ptr_ = nullptr;
 
         uint16_t send_cnt;
         IBC::ibc_chassis chassis_send_;

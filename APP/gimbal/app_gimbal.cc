@@ -13,6 +13,7 @@
 #include "dev_motor_dm.h"
 #include "app_second_order.h"
 #include "app_vision_core.h"
+#include "msg.h"
 #include "robomaster.h"
 #include "const_data/robot_data.h"
 
@@ -31,7 +32,7 @@ Motor::DJIMotor right_shoot_motor("right_shoot_motor",
                                   (Motor::DJIMotor::Param){
                                       .id = 0x01, .port = E_CAN2, .mode = Motor::DJIMotor::CURRENT });
 Motor::DJIMotor trigger_motor("trigger_motor",
-                              Motor::DJIMotor::M3508,
+                              Motor::DJIMotor::M2006,
                               (Motor::DJIMotor::Param){ .id = 0x01, .port = E_CAN3, .mode = Motor::DJIMotor::CURRENT });
 Motor::DJIMotor
     yaw_motor("yaw_motor", Motor::DJIMotor::GM6020, { .id = 0x01, .port = E_CAN3, .mode = Motor::DJIMotor::CURRENT });
@@ -56,6 +57,17 @@ Gimbal::Head my_head(&yaw_motor, &pit_motor, &robo_snap);
 Gimbal::Shoot my_shoot(&left_shoot_motor, &right_shoot_motor, &trigger_motor, &robo_snap);
 Gimbal::vision_core my_vision_core(1000, 60, &robo_snap);
 Gimbal::gimbal_coordinate coordinate(&my_shoot,&my_head,&my_vision_core);
+
+//板间通讯
+IBC::ibc_gimbal gimbal_send = {};
+IBC::ibc_chassis_data chassis_data = {};
+// app_msg_can_receiver<IBC::ibc_chassis> chassis_receiver(E_CAN3, CHASSIS_ID);
+
+msg::can_sender<IBC::ibc_gimbal, E_CAN3, GIMBAL_ID> sender(2);
+msg::can_receiver<IBC::ibc_chassis, E_CAN3, CHASSIS_ID> chassis_test;
+
+
+int16_t send_cnt = 0;
 void app_gimbal_task(void *args) {
     // Wait for system init.
     while(!app_sys_ready())
@@ -68,16 +80,46 @@ void app_gimbal_task(void *args) {
     robomaster::image::init(E_UART_7);
     auto image_rc = robomaster::image::rc::data();
     Gimbal::keyboard my_keyboard(image_rc);
+    // chassis_receiver.init();
+
+    sender.init();
+    chassis_test.init();
 
     while(true) {
+
+        send_cnt++;
+        if(send_cnt >= 5) {
+            send_cnt = 0;
+            auto cmd = coordinate.ctrl_.get_cmd();
+            gimbal_send.gry = IBC::float32_to_uint16(cmd->delta_body_yaw,ZH_GRY_MAX,ZH_GRY_MIN);
+            gimbal_send.height = IBC::float32_to_uint16(cmd->target_height,ZH_HEIGHT_MAX,ZH_HEIGHT_MIN);
+            gimbal_send.vx = IBC::float32_to_uint16(cmd->vx,ZH_V_MAX,ZH_V_MIN);
+            gimbal_send.vy = IBC::float32_to_uint16(cmd->vy,ZH_V_MAX,ZH_V_MIN);
+            gimbal_send.switch_cmd = coordinate.ctrl_.get_flag()->switch_cmd_;
+
+            *sender() = gimbal_send;
+            sender.send();
+
+            auto ibc = chassis_test();
+            chassis_data.vector_x = IBC::uint16_to_float32(ibc->vector_x,1,-1);
+            chassis_data.vector_y = IBC::uint16_to_float32(ibc->vector_y,1,-1);
+            chassis_data.vector_z = IBC::uint16_to_float32(ibc->vector_z,1,-1);
+            chassis_data.body_phi = IBC::uint16_to_float32(ibc->body_phi,PI_F32, -PI_F32);
+            chassis_data.chassis_cmd_ = ibc->chassis_cmd_;
+        }
+
         my_keyboard.update();
         auto temp = my_keyboard.get_pkg();
 
         robo_snap.snap_update();
         coordinate.update_keyboard(temp);
         coordinate.tick();
-
-
+        app_msg_vofa_send(E_UART_1,
+            chassis_data.vector_x,
+            chassis_data.vector_y,
+            chassis_data.vector_z,
+            chassis_data.body_phi,
+            chassis_test.timestamp);
         OS::Task::SleepMilliseconds(1);
     }
 }

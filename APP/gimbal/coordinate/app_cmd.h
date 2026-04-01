@@ -39,6 +39,7 @@ typedef enum {
  */
 typedef struct {
     float vx, vy, delta_body_yaw;
+    float target_height;
     bool shoot_flag;
     float delta_pit,delta_head_yaw;
 }gimbal_cmd_pkg;

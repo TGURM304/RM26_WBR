@@ -13,7 +13,7 @@
 #include <app_relay.h>
 #include "lqr_matrix.h"
 
-#include <ios>
+#include "msg.h"
 
 #ifdef COMPILE_CHASSIS
 
@@ -106,16 +106,45 @@ Coordinate::component my_component = {
 .right = &right_dynamic,
 .left = &left_dynamic};
 Coordinate::app_coordinate my_coordinate(&my_snap,my_controller_struct,my_component);
+IBC::ibc_chassis chassis_send = {};
+
+msg::can_sender<IBC::ibc_chassis, E_CAN3, CHASSIS_ID> sender(2);
+msg::can_receiver<IBC::ibc_gimbal, E_CAN3, GIMBAL_ID> gimbal_test;
+IBC::ibc_gimbal_data gimbal_data = {};
+
+uint16_t cnt = 0;
 // 静态任务，在 CubeMX 中配置
 void app_chassis_task(void *args) {
 	// Wait for system init.
 	while(!app_sys_ready()) OS::Task::SleepMilliseconds(10);
     OS::Task::SleepSeconds(2);
-    app_chassis_init();
 
+    gimbal_test.init();
+    sender.init();
 	while(true) {
+	    cnt++;
+	    if(cnt >= 5) {
+	        cnt = 0;
+	        auto data = gimbal_test();
+	        gimbal_data.gry = IBC::uint16_to_float32(data->gry,ZH_GRY_MAX,ZH_GRY_MIN);
+            gimbal_data.height = IBC::uint16_to_float32(data->height,ZH_HEIGHT_MAX,ZH_HEIGHT_MIN);
+            gimbal_data.vx = IBC::uint16_to_float32(data->vx,ZH_V_MAX,ZH_V_MIN);
+            gimbal_data.vy = IBC::uint16_to_float32(data->vy,ZH_V_MAX,ZH_V_MIN);
+	        gimbal_data.switch_cmd = data->switch_cmd;
 
-        my_coordinate.test_function(rc);
+	        auto chassis_data = my_coordinate.robot_snap_ptr_->current_snap_get();
+	        chassis_send.body_phi = IBC::float32_to_uint16(chassis_data->robot_raw_data.body_phi,PI_F32, -PI_F32);
+            chassis_send.vector_x = IBC::float32_to_uint16(chassis_data->robot_raw_data.vector_x,1,-1);
+            chassis_send.vector_y = IBC::float32_to_uint16(chassis_data->robot_raw_data.vector_y,1,-1);
+            chassis_send.vector_z = IBC::float32_to_uint16(chassis_data->robot_raw_data.vector_z,1,-1);
+            chassis_send.chassis_cmd_ = Coordinate::E_WAITING;
+	        // app_msg_can_send(E_CAN3,CHASSIS_ID,chassis_send);
+
+	        *sender() = chassis_send;
+	        sender.send();
+	    }
+
+        my_coordinate.test_function(&gimbal_data);
 	    OS::Task::SleepMilliseconds(1);
 	}
 }
@@ -143,6 +172,7 @@ void app_chassis_init() {
     // while(joint4.get_status().err != 1)
         joint4.pkg_enable(), OS::Task::SleepMilliseconds(10);
     my_coordinate.init();
+    // gimbal.init();
 }
 
 #endif

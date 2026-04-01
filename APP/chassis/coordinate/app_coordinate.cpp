@@ -25,16 +25,6 @@ void app_coordinate::tick() {
     auto snap = robot_snap_ptr_->current_snap_get()->lqr_data;
 
     //按照频率发送内容,200Hz
-    send_cnt++;
-    if(send_cnt >= 5) {
-        send_cnt = 0;
-        auto p = robot_snap_ptr_->current_snap_get();
-        chassis_send_.vector_x = IBC::float32_to_uint16(p->robot_raw_data.vector_x,1,-1);
-        chassis_send_.vector_y = IBC::float32_to_uint16(p->robot_raw_data.vector_y,1,-1);
-        chassis_send_.vector_z = IBC::float32_to_uint16(p->robot_raw_data.vector_z,1,-1);
-        chassis_send_.chassis_cmd_ = mode_state_.current_state_;
-        app_msg_can_send(E_CAN3,CHASSIS_ID,chassis_send_);
-    }
 
 }
 
@@ -42,7 +32,7 @@ void app_coordinate::init(){
     ibc_gimbal_.init();
 }
 
-void app_coordinate::test_function(const bsp_rc_data_t *rc){
+void app_coordinate::test_function(IBC::ibc_gimbal_data* gimbal_data){
     auto force = controller_.leg_ctrl->get_output();
 
     // out_side_cmd_update(ibc_gimbal_);
@@ -52,25 +42,62 @@ void app_coordinate::test_function(const bsp_rc_data_t *rc){
     robot_snap_ptr_->snap_update();
     mode_state_.last_state = mode_state_.current_state_;
     ctrl_struct test = {};
-    test.body_height = (rc->rc_l[1]*1.0f)/660.0f;
-    test.ver_x =  (rc->rc_r[1]*2.0f)/660.0f;
-    test.ver_y = (rc->rc_r[0]*2.0f)/660.0f;
+    // test.body_height = gimbal_data->height;
+    // test.gry = gimbal_data->gry;
+    // test.ver_x = gimbal_data->vx;
+    // test.ver_y = gimbal_data->vy;
+    test.body_height    = 0.18;
+    test.gry            = 0;
+    test.ver_x          = 0;
+    test.ver_y          = 0;
+    auto cmd = gimbal_data->switch_cmd;
 
-    if(rc->s_l == -1 && rc->s_r == 0) {
-        mode_state_.current_state_ = E_DOG;
-        exe_dog(robot_snap_ptr_,mode_state_,test);
+    if(cmd == Coordinate::CMD_EMERGENCY)
+        mode_state_.current_state_ = E_WAITING;
+    if(mode_state_.current_state_ == E_WAITING) {
+        if(cmd == Coordinate::CMD_START) {
+            mode_state_.current_state_ = E_PUT_LEG;
+        }
+        else if(cmd == Coordinate::CMD_DOG_START) {
+            mode_state_.current_state_ = E_DOG;
+        }
     }
-    else if(rc->s_l == 1 && rc->s_r == 0) {
-        mode_state_.current_state_ = E_PUT_LEG;
+    else if(mode_state_.current_state_ == E_PUT_LEG) {
+        if(cmd == Coordinate::CMD_NORMAL_LQR) {
+            mode_state_.current_state_ = E_LQR;
+        }
+        else if(cmd == Coordinate::CMD_EMERGENCY) {
+            mode_state_.current_state_ = E_WAITING;
+        }
+    }
+    else if(mode_state_.current_state_ == E_DOG) {
+        if(cmd == Coordinate::CMD_EMERGENCY) {
+            mode_state_.current_state_ = E_WAITING;
+        }
+        else if(cmd == Coordinate::CMD_START) {
+            mode_state_.current_state_ = E_PUT_LEG;
+        }
+    }
+    else if(mode_state_.current_state_ == E_LQR) {
+        if(cmd == Coordinate::CMD_START) {
+            mode_state_.current_state_ = E_PUT_LEG;
+        }
+        else if(cmd == Coordinate::CMD_EMERGENCY) {
+            mode_state_.current_state_ = E_WAITING;
+        }
+    }
+
+    if(mode_state_.current_state_ == E_WAITING ) {
+        motor_rest();
+    }
+    else if(mode_state_.current_state_ == E_PUT_LEG) {
         exe_put_leg(robot_snap_ptr_,mode_state_,test);
     }
-    else if(rc->s_l == 1 && rc->s_r == 1) {
-        mode_state_.current_state_ = E_LQR;
+    else if(mode_state_.current_state_ == E_LQR) {
         exe_lqr(robot_snap_ptr_,mode_state_,test);
     }
-    else {
-        mode_state_.current_state_ = E_WAITING;
-        motor_rest();
+    else if(mode_state_.current_state_ == E_DOG) {
+        exe_dog(robot_snap_ptr_,mode_state_,test);
     }
 }
 
@@ -313,7 +340,11 @@ void app_coordinate::exe_chair(snap *robot_snap, mode_state_struct state,ctrl_st
     motor_output_.dynamic_right = right.wheel_balance + right.wheel_move;
 }
 
-//正常轮腿的控制部分
+/**
+ *正常轮腿的控制部分
+ * 目前的外部控制量：
+ * gry，ver_x，ver_y，height
+ */
 void app_coordinate::exe_lqr(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl){
 
     auto p = robot_snap->current_snap_get();
@@ -450,6 +481,7 @@ mode_state_struct app_coordinate::mode_ptr_search(){
     return temp;
 }
 
+
 void app_coordinate::basic_lqr_ctrl(snap *robot_snap, mode_state_struct state,ctrl_struct ctrl){
     auto p = robot_snap->current_snap_get();
     auto zero_p = robot_snap->zero_snap_get();
@@ -486,7 +518,7 @@ void app_coordinate::basic_lqr_ctrl(snap *robot_snap, mode_state_struct state,ct
 
     //腿长位移补偿
     auto x =  mode_state_.height_record;
-    auto dis = 5.6651f - 40.5217f*x + 124.487f*powf(x,2) - 128.703f*powf(x,3);
+    auto dis = 1;
 
     float32_t delta[10];
     delta[0] =  LQR_target_data.S       - (p->lqr_data.S                    -   zero_p->lqr_data.S - dis);
@@ -497,7 +529,7 @@ void app_coordinate::basic_lqr_ctrl(snap *robot_snap, mode_state_struct state,ct
     // delta[2] =  LQR_target_data.phi     - temp;
     // delta[2] > PI? delta[2] -= 2*PI:(delta[2] < -PI? delta[2] += 2*PI:0);
     // delta[2] = (((delta[2]) > (1)) ? (1) : (((delta[2]) < -(1)) ? -(1) : (delta[2])));
-    delta[3] =  LQR_target_data.dot_phi  - (p->lqr_data.dot_phi          -zero_p->lqr_data.dot_phi        );
+    delta[3] =  LQR_target_data.dot_phi - (p->lqr_data.dot_phi          -zero_p->lqr_data.dot_phi        );
     delta[4] =  0                       - (p->lqr_data.left_theta      );
     delta[5] =  0                       - (p->lqr_data.left_dot_theta  );
     delta[6] =  0                       - (p->lqr_data.right_theta     );
@@ -557,7 +589,7 @@ void app_coordinate::motor_tor_ready(){
 void app_coordinate::target_update(snap *robot_snap,ctrl_struct ctrl){
     auto p = robot_snap->current_snap_get();
 
-    mode_state_.height_record += ctrl.body_height/1000.0f;
+    mode_state_.height_record = ctrl.body_height;
     if(mode_state_.height_record > HEIGHT_MAX) mode_state_.height_record = HEIGHT_MAX;
     else if(mode_state_.height_record < HEIGHT_MIN) mode_state_.height_record = HEIGHT_MIN;
     controller_.leg_ctrl->left_len_update(p->left_leg,mode_state_.height_record);

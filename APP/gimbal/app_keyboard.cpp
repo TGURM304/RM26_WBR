@@ -49,9 +49,9 @@ void Gimbal::keyboard::update() {
     }
 
     // =========================
-    // 3. shoot_fre：按 R 三档循环切换 0/1/2
+    // 3. shoot_fre：按 shift+R 三档循环切换 0/1/2
     // =========================
-    if (key.r && !last_key.r) {
+    if ((key.shift && key.r) && !last_key.r) {
         pkg_.shoot_fre = (pkg_.shoot_fre + 1) % 3;
     }
 
@@ -134,8 +134,34 @@ void Gimbal::keyboard::update() {
     pkg_.player_fire = rc_data_->mouse_l;
 
     // =========================
-    // 8. player_fire：玩家开火命令
-    // 这里按常见逻辑用鼠标左键
-    // 如果你想把 key_shoot 也算进去，可以保留下面这种写法
+    // 9. 按下R直接休息
+    // 不能与shift+R冲突
     // =========================
+    if ((key.r) && !key.shift) {
+        pkg_.switch_rest = true;
+    }
+    else {
+        pkg_.switch_rest = false;
+    }
+
+    //底盘运行模式切换
+    //土狗模式，腿部校准模式，LQR模式三选一，按Z/X/C切换，不能同时按，不能与休息冲突
+    if(pkg_.switch_rest == false) {
+        pkg_.switch_reset = false;
+        pkg_.switch_dog = false;
+        pkg_.switch_put = false;
+        pkg_.switch_lqr = false;
+        if(key.z && !key.x && !key.c && key.shift) {
+            pkg_.switch_reset = true;
+        }
+        else if(key.z && !key.x && !key.c && !key.shift) {
+            pkg_.switch_put = true;
+        }
+        else if(!key.z && key.x && !key.c && !key.shift) {
+            pkg_.switch_dog = true;
+        }
+        else if(!key.z && !key.x && key.c && !key.shift) {
+            pkg_.switch_lqr = true;
+        }
+    }
 }

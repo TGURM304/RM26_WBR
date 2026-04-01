@@ -26,16 +26,33 @@
  *      底盘三个矢量Vector_x, Vector_y, Vector_z（6Byte）
  *      底盘当前工作模式（1Byte）
  */
+
+#define ZH_GRY_MAX (8.0f)
+#define ZH_GRY_MIN (-8.0f)
+#define ZH_V_MAX (4.0f)
+#define ZH_V_MIN (-4.0f)
+#define ZH_HEIGHT_MAX (0.4f)
+#define ZH_HEIGHT_MIN (0.15f)
+
 namespace IBC {
 typedef struct {
     uint16_t vx,vy,gry,height;//8Byte
     Coordinate::mode_switch_cmd switch_cmd;
-}ibc_gimbal;
+} __attribute__((packed)) ibc_gimbal;
 typedef struct {
     uint16_t vector_x,vector_y,vector_z;//6Byte
     uint16_t body_phi;//2Byte
     Coordinate::mode_state chassis_cmd_;
-}ibc_chassis;
+} __attribute__((packed)) ibc_chassis;
+typedef struct {
+    float vector_x,vector_y,vector_z;
+    float body_phi;
+    Coordinate::mode_state chassis_cmd_;
+}ibc_chassis_data;
+typedef struct {
+    float vx,vy,gry,height;
+    Coordinate::mode_switch_cmd switch_cmd;
+}ibc_gimbal_data;
 uint16_t float32_to_uint16(float32_t data, float data_max, float data_min);
 float32_t uint16_to_float32(uint16_t data, float data_max, float data_min);
 }

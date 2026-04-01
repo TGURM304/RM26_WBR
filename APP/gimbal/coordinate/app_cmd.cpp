@@ -33,7 +33,7 @@ void gimbal_ctrl::keyboard_update(Gimbal::keyboard_cmd_pkg pkg_) {
     cmd_.delta_body_yaw = pkg_.spin;
     cmd_.delta_head_yaw = pkg_.mouse_x;
     cmd_.delta_pit = pkg_.mouse_y;
-
+    cmd_.target_height = pkg_.target_height;
     //几个flag的更新
     //摩檫轮的更新
     if(pkg_.fric_flag == true)
@@ -56,6 +56,25 @@ void gimbal_ctrl::keyboard_update(Gimbal::keyboard_cmd_pkg pkg_) {
 
     //此处是云台的控制启用，如果云台控制启用了才能完成后续内容，这里就默认开启
     flag_.gimbal_ctrl_ = true;
+
+    if(pkg_.switch_rest == true) {
+        flag_.switch_cmd_ = Coordinate::mode_switch_cmd::CMD_EMERGENCY;//保护状态，优先级最高
+    }
+    else if(pkg_.switch_reset == true) {
+        flag_.switch_cmd_ = Coordinate::mode_switch_cmd::CMD_REBOOT;//倒地自启
+    }
+    else if(pkg_.switch_put == true) {
+        flag_.switch_cmd_ = Coordinate::mode_switch_cmd::CMD_START;//启动，把腿放下来
+    }
+    else if(pkg_.switch_lqr == true) {
+        flag_.switch_cmd_ = Coordinate::mode_switch_cmd::CMD_NORMAL_LQR;
+    }
+     else if(pkg_.switch_dog == true) {
+        flag_.switch_cmd_ = Coordinate::mode_switch_cmd::CMD_DOG_START;
+    }
+     else {
+        flag_.switch_cmd_ = Coordinate::mode_switch_cmd::CMD_EXECUTING;
+    }
 }
 
 void gimbal_ctrl::rc_update(const bsp_rc_data_t *rc) {
@@ -112,11 +131,6 @@ ibc_gimbal_send_pkg *gimbal_ctrl::get_gimbal_pkg(){
 void gimbal_ctrl::tick(){
     //此处先不写哪些乱七八糟的逻辑
     //todo:完成运动控制的映射
-    gimbal_pkg_.chassis_cmd_ = flag_.chassis_sate_;
-    gimbal_pkg_.delta_yaw_ = cmd_.delta_body_yaw;
-    gimbal_pkg_.switch_cmd_ = flag_.switch_cmd_;
-    gimbal_pkg_.dot_S = cmd_.vx;
-    app_msg_can_send(E_CAN3,GIMBAL_ID,gimbal_pkg_);
 
 }
 

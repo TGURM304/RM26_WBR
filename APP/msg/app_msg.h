@@ -19,7 +19,7 @@
 #include <functional>
 
 // 根据总线负载选择
-#define MSG_CAN_LIMIT_PER_MILLISECOND 8
+#define MSG_CAN_LIMIT_PER_MILLISECOND 4
 
 /*!
  * 通过 Vofa+ 的 Justfloat 协议发送调试数据（所有数据统一转换为 float）
@@ -49,13 +49,15 @@ void app_msg_can_send(bsp_can_e e, uint32_t id, uint8_t *s);
 
 template <typename T>
 void app_msg_can_send(bsp_can_e e, uint32_t id, T &data) {
-    size_t k = std::ceil((sizeof(T) + 4) / 8.0) * 8;
-    std::vector <uint8_t> pkg(k);
+    uint8_t pkg[((sizeof(T) + 4 + 8 - 1) / 8) * 8];
+
+    memset(pkg, 0, sizeof(pkg));
+
     pkg[0] = 0xa5, pkg[1] = 0x5a, pkg[2] = sizeof(data);
-    std::copy_n(reinterpret_cast<uint8_t *>(&data), sizeof(T), pkg.begin() + 3);
-    pkg[sizeof(T) + 3] = CRC8::calc(pkg.data(), sizeof(T) + 3);
-    for(size_t i = 0; i < pkg.size(); i += 8) {
-        app_msg_can_send(e, id, pkg.data() + i);
+    std::copy_n(reinterpret_cast<uint8_t *>(&data), sizeof(T), pkg + 3);
+    pkg[sizeof(T) + 3] = CRC8::calc(pkg, sizeof(T) + 3);
+    for(size_t i = 0; i < ((sizeof(T) + 4 + 8 - 1) / 8) * 8 ; i += 8) {
+        app_msg_can_send(e, id, pkg + i);
     }
 }
 

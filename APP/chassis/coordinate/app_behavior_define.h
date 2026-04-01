@@ -10,7 +10,7 @@
 #include "app_leg_ctrl.h"
 
 namespace Coordinate {
-typedef enum {
+typedef enum:uint8_t {
     E_NOT_READY,
     E_READY,
     E_FIRST,
@@ -18,7 +18,7 @@ typedef enum {
     E_STAND_READY,
     E_STAND
 }upstairs_stage;
-typedef enum {
+typedef enum:uint8_t {
     E_ANY,
     E_WAITING,
     E_PUT_BODY,
@@ -32,11 +32,11 @@ typedef enum {
     E_GET_GROUND_SMOOTH,
     E_MODE_CNT
 }mode_state;//转换模式
-typedef enum {
-    CMD_EXECUTING,
-    CMD_START,
-    CMD_DOG_START,
-    CMD_DOG_END,
+typedef enum:uint8_t {
+    CMD_EXECUTING,//运行当前
+    CMD_START,//启动，先放腿
+    CMD_DOG_START,//土狗模式启动
+    CMD_DOG_END,//土狗模式结束
     CMD_CHAIR_START,
     CMD_STAIR_FINISH,
     CMD_STAIR_START,
