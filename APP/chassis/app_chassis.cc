@@ -128,7 +128,7 @@ void app_chassis_task(void *args) {
 	    if(cnt >= 5) {
 	        cnt = 0;
 	        auto data = gimbal_test();
-	        gimbal_data.gry = IBC::uint16_to_float32(data->target_yaw,ZH_GRY_MAX,ZH_GRY_MIN);
+	        gimbal_data.target_yaw = IBC::uint16_to_float32(data->target_yaw,PI_F32,-PI_F32);
 	        gimbal_data.height = IBC::uint16_to_float32(data->height,ZH_HEIGHT_MAX,ZH_HEIGHT_MIN);
 	        gimbal_data.vx = IBC::uint16_to_float32(data->vx,ZH_V_MAX,ZH_V_MIN);
 	        gimbal_data.vy = IBC::uint16_to_float32(data->vy,ZH_V_MAX,ZH_V_MIN);

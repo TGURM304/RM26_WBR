@@ -86,6 +86,7 @@ typedef struct {
 } mode_state_struct;
 typedef struct {
     float32_t body_height, speed, gry;
+    float32_t body_target_yaw;
     float32_t ver_x, ver_y;//相对云台的，云台正方向为x轴正方向
     bool spin_flag;
 } ctrl_struct;

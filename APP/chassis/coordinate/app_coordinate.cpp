@@ -43,7 +43,7 @@ void app_coordinate::test_function(IBC::ibc_gimbal_data* gimbal_data){
     mode_state_.last_state = mode_state_.current_state_;
     ctrl_struct test = {};
     test.body_height    = gimbal_data->height;
-    test.gry            = gimbal_data->gry;
+    test.body_target_yaw= gimbal_data->target_yaw;
     test.ver_x          = gimbal_data->vx;
     test.ver_y          = gimbal_data->vy;
     auto cmd = gimbal_data->switch_cmd;
@@ -363,8 +363,7 @@ void app_coordinate::exe_dog(snap *robot_snap, mode_state_struct state, ctrl_str
 
 
     //step1: 计算目标速度角度和大小
-    float target_yaw = gimbal_yaw;
-    target_yaw = gimbal_yaw + atan2f(ctrl.ver_y,ctrl.ver_x);
+    float target_yaw = ctrl.body_target_yaw + atan2f(ctrl.ver_y,ctrl.ver_x);
     //我们先默认目标姿态为0，后续可以加上云台
     float delta_yaw = target_yaw - robot_snap->current_snap_get()->robot_raw_data.body_phi;
     if(delta_yaw > PI) delta_yaw -= 2*PI;

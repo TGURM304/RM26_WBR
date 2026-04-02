@@ -52,7 +52,7 @@ typedef struct {
     Coordinate::mode_state chassis_cmd_;
 }ibc_chassis_data;
 typedef struct {
-    float vx,vy,gry,height;
+    float vx,vy,target_yaw,height;
     Coordinate::mode_switch_cmd switch_cmd;
 }ibc_gimbal_data;
 uint16_t float32_to_uint16(float32_t data, float data_max, float data_min);
