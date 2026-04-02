@@ -69,5 +69,5 @@ void Head::head_update() {
 
 void Head::head_output(){
     yaw_motor_->update(pid_yaw_out_);
-    pit_motor_->control(head_ctrl_pkg_.pit_pos,0,40,2,0);
+    pit_motor_->control(head_ctrl_pkg_.pit_pos,0,40,1,0);
 }

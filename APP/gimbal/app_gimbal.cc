@@ -121,6 +121,10 @@ void app_gimbal_task(void *args) {
         my_keyboard.update();
         auto temp = my_keyboard.get_pkg();
 
+        if(pit_motor.status.err != 3) {
+            pit_motor.reset();
+            pit_motor.enable();
+        }
 
         robo_snap.snap_update();
         coordinate.update_keyboard(temp);
