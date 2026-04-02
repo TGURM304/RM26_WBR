@@ -7,6 +7,7 @@
 #include "bsp_uart.h"
 #include "robomaster.h"
 #include "robot_data.h"
+#include "sys_signal.h"
 
 #include <future>
 using namespace Coordinate;
@@ -78,7 +79,7 @@ void app_coordinate::test_function(IBC::ibc_gimbal_data* gimbal_data){
     else if(mode_state_.current_state_ == E_DOG) {
         exe_dog(robot_snap_ptr_,mode_state_,test);
     }
-    motor_rest();
+    // motor_rest();
 }
 
 void app_coordinate::motor_tor_update(){
@@ -88,6 +89,7 @@ void app_coordinate::motor_tor_update(){
     p->j2->set_tor(o->tor_j2);
     p->j3->set_tor(o->tor_j3);
     p->j4->set_tor(o->tor_j4);
+    // OS::Task::SleepMilliseconds(1);
     p->left->set_tor(o->dynamic_left);
     p->right->set_tor(o->dynamic_right);
     out_side_cmd_update(ibc_gimbal_);

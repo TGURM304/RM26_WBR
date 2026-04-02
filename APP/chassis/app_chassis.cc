@@ -140,7 +140,7 @@ void app_chassis_task(void *args) {
 	        chassis_send.vector_y = IBC::float32_to_uint16(chassis_data->robot_raw_data.vector_y,1,-1);
 	        chassis_send.vector_z = IBC::float32_to_uint16(chassis_data->robot_raw_data.vector_z,1,-1);
 	        chassis_send.chassis_cmd_ = Coordinate::E_WAITING;
-	        // app_msg_can_send(E_CAN3,CHASSIS_ID,chassis_send);
+	        app_msg_can_send(E_CAN3,CHASSIS_ID,chassis_send);
 
 	        *sender() = chassis_send;
 	        sender.send();

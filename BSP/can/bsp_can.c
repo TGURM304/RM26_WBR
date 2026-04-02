@@ -54,7 +54,7 @@ void bsp_can_send(bsp_can_e e, uint32_t id, uint8_t *s) {
         .TxEventFifoControl = FDCAN_STORE_TX_EVENTS,
         .MessageMarker = 0x01
     };
-    while(handle[e]->Instance->TXFQS & FDCAN_TXFQS_TFQF) __NOP();
+    // while(handle[e]->Instance->TXFQS & FDCAN_TXFQS_TFQF) __NOP();
     HAL_FDCAN_AddMessageToTxFifoQ(handle[e], &header, s);
 }
 
