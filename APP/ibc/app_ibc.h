@@ -27,6 +27,7 @@
  *      底盘当前工作模式（1Byte）
  */
 
+
 #define ZH_GRY_MAX (8.0f)
 #define ZH_GRY_MIN (-8.0f)
 #define ZH_V_MAX (4.0f)
@@ -36,7 +37,8 @@
 
 namespace IBC {
 typedef struct {
-    uint16_t vx,vy,gry,height;//8Byte
+    uint16_t vx,vy,target_yaw,height;//8Byte
+    uint8_t spin_flag;
     Coordinate::mode_switch_cmd switch_cmd;
 } __attribute__((packed)) ibc_gimbal;
 typedef struct {

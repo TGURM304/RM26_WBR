@@ -15,6 +15,8 @@
 
 #include "msg.h"
 
+#include <ranges>
+
 #ifdef COMPILE_CHASSIS
 
 #define LIMIT(max,data) (((data) > (max)) ? (max) : (((data) < -(max)) ? -(max) : (data)))
@@ -126,25 +128,34 @@ void app_chassis_task(void *args) {
 	    if(cnt >= 5) {
 	        cnt = 0;
 	        auto data = gimbal_test();
-	        gimbal_data.gry = IBC::uint16_to_float32(data->gry,ZH_GRY_MAX,ZH_GRY_MIN);
-            gimbal_data.height = IBC::uint16_to_float32(data->height,ZH_HEIGHT_MAX,ZH_HEIGHT_MIN);
-            gimbal_data.vx = IBC::uint16_to_float32(data->vx,ZH_V_MAX,ZH_V_MIN);
-            gimbal_data.vy = IBC::uint16_to_float32(data->vy,ZH_V_MAX,ZH_V_MIN);
+	        gimbal_data.gry = IBC::uint16_to_float32(data->target_yaw,ZH_GRY_MAX,ZH_GRY_MIN);
+	        gimbal_data.height = IBC::uint16_to_float32(data->height,ZH_HEIGHT_MAX,ZH_HEIGHT_MIN);
+	        gimbal_data.vx = IBC::uint16_to_float32(data->vx,ZH_V_MAX,ZH_V_MIN);
+	        gimbal_data.vy = IBC::uint16_to_float32(data->vy,ZH_V_MAX,ZH_V_MIN);
 	        gimbal_data.switch_cmd = data->switch_cmd;
 
 	        auto chassis_data = my_coordinate.robot_snap_ptr_->current_snap_get();
 	        chassis_send.body_phi = IBC::float32_to_uint16(chassis_data->robot_raw_data.body_phi,PI_F32, -PI_F32);
-            chassis_send.vector_x = IBC::float32_to_uint16(chassis_data->robot_raw_data.vector_x,1,-1);
-            chassis_send.vector_y = IBC::float32_to_uint16(chassis_data->robot_raw_data.vector_y,1,-1);
-            chassis_send.vector_z = IBC::float32_to_uint16(chassis_data->robot_raw_data.vector_z,1,-1);
-            chassis_send.chassis_cmd_ = Coordinate::E_WAITING;
+	        chassis_send.vector_x = IBC::float32_to_uint16(chassis_data->robot_raw_data.vector_x,1,-1);
+	        chassis_send.vector_y = IBC::float32_to_uint16(chassis_data->robot_raw_data.vector_y,1,-1);
+	        chassis_send.vector_z = IBC::float32_to_uint16(chassis_data->robot_raw_data.vector_z,1,-1);
+	        chassis_send.chassis_cmd_ = Coordinate::E_WAITING;
 	        // app_msg_can_send(E_CAN3,CHASSIS_ID,chassis_send);
 
 	        *sender() = chassis_send;
 	        sender.send();
 	    }
 
-        my_coordinate.test_function(&gimbal_data);
+	    my_coordinate.test_function(&gimbal_data);
+	    if((joint1.get_status().err == 0 || joint1.get_status().err == 0xD)
+            || (joint2.get_status().err == 0 || joint2.get_status().err == 0xD)
+            || (joint3.get_status().err == 0 || joint3.get_status().err == 0xD)
+            || (joint4.get_status().err == 0 || joint4.get_status().err == 0xD)) {
+	        joint1.pkg_reset(),joint1.pkg_enable();
+	        joint2.pkg_reset(),joint2.pkg_enable();
+	        joint3.pkg_reset(),joint3.pkg_enable();
+	        joint4.pkg_reset(),joint4.pkg_enable();
+	    }
 	    OS::Task::SleepMilliseconds(1);
 	}
 }

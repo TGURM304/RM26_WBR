@@ -13,12 +13,14 @@ typedef struct {
     bool auto_aim_flag;
     bool fric_flag;
     bool player_fire;
+    bool reset_flag;
     bool switch_dog, switch_put, switch_reset, switch_lqr, switch_rest;
     uint8_t shoot_fre;//0,1,2分别对应不同射速
     float vx,vy;
     float target_height;
     float spin;
     float mouse_x, mouse_y;
+    bool gimbal_flag;
 }keyboard_cmd_pkg;
 class keyboard {
 public:

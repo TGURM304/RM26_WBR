@@ -35,55 +35,34 @@ void app_coordinate::init(){
 void app_coordinate::test_function(IBC::ibc_gimbal_data* gimbal_data){
     auto force = controller_.leg_ctrl->get_output();
 
-    // out_side_cmd_update(ibc_gimbal_);
 
     tick();
 
     robot_snap_ptr_->snap_update();
     mode_state_.last_state = mode_state_.current_state_;
     ctrl_struct test = {};
-    // test.body_height = gimbal_data->height;
-    // test.gry = gimbal_data->gry;
-    // test.ver_x = gimbal_data->vx;
-    // test.ver_y = gimbal_data->vy;
-    test.body_height    = 0.18;
-    test.gry            = 0;
-    test.ver_x          = 0;
-    test.ver_y          = 0;
+    test.body_height    = gimbal_data->height;
+    test.gry            = gimbal_data->gry;
+    test.ver_x          = gimbal_data->vx;
+    test.ver_y          = gimbal_data->vy;
     auto cmd = gimbal_data->switch_cmd;
 
-    if(cmd == Coordinate::CMD_EMERGENCY)
+    if(cmd == Coordinate::CMD_EMERGENCY) {
         mode_state_.current_state_ = E_WAITING;
-    if(mode_state_.current_state_ == E_WAITING) {
-        if(cmd == Coordinate::CMD_START) {
-            mode_state_.current_state_ = E_PUT_LEG;
-        }
-        else if(cmd == Coordinate::CMD_DOG_START) {
-            mode_state_.current_state_ = E_DOG;
-        }
     }
-    else if(mode_state_.current_state_ == E_PUT_LEG) {
-        if(cmd == Coordinate::CMD_NORMAL_LQR) {
-            mode_state_.current_state_ = E_LQR;
+    else {
+        if(mode_state_.current_state_ == E_WAITING) {
+            if(cmd == Coordinate::CMD_START) {
+                mode_state_.current_state_ = E_PUT_LEG;
+            }
+            else if(cmd == Coordinate::CMD_DOG_START) {
+                mode_state_.current_state_ = E_DOG;
+            }
         }
-        else if(cmd == Coordinate::CMD_EMERGENCY) {
-            mode_state_.current_state_ = E_WAITING;
-        }
-    }
-    else if(mode_state_.current_state_ == E_DOG) {
-        if(cmd == Coordinate::CMD_EMERGENCY) {
-            mode_state_.current_state_ = E_WAITING;
-        }
-        else if(cmd == Coordinate::CMD_START) {
-            mode_state_.current_state_ = E_PUT_LEG;
-        }
-    }
-    else if(mode_state_.current_state_ == E_LQR) {
-        if(cmd == Coordinate::CMD_START) {
-            mode_state_.current_state_ = E_PUT_LEG;
-        }
-        else if(cmd == Coordinate::CMD_EMERGENCY) {
-            mode_state_.current_state_ = E_WAITING;
+        else if(mode_state_.current_state_ == E_LQR) {
+            if(cmd == Coordinate::CMD_START) {
+                mode_state_.current_state_ = E_PUT_LEG;
+            }
         }
     }
 
@@ -99,6 +78,7 @@ void app_coordinate::test_function(IBC::ibc_gimbal_data* gimbal_data){
     else if(mode_state_.current_state_ == E_DOG) {
         exe_dog(robot_snap_ptr_,mode_state_,test);
     }
+    motor_rest();
 }
 
 void app_coordinate::motor_tor_update(){

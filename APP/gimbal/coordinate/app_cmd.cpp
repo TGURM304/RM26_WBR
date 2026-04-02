@@ -53,9 +53,12 @@ void gimbal_ctrl::keyboard_update(Gimbal::keyboard_cmd_pkg pkg_) {
     flag_.auto_aim_gimbal_ = pkg_.auto_aim_flag;
     flag_.shoot_ctrl_ = pkg_.player_fire;
 
+    //云台reset和云台enable的更新
+    flag_.enable = pkg_.reset_flag;
+    if(pkg_.gimbal_flag == true) {
+        flag_.gimbal_ctrl_ = !flag_.gimbal_ctrl_;
+    }
 
-    //此处是云台的控制启用，如果云台控制启用了才能完成后续内容，这里就默认开启
-    flag_.gimbal_ctrl_ = true;
 
     if(pkg_.switch_rest == true) {
         flag_.switch_cmd_ = Coordinate::mode_switch_cmd::CMD_EMERGENCY;//保护状态，优先级最高

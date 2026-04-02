@@ -56,10 +56,10 @@ Gimbal::snap robo_snap(
 Gimbal::Head my_head(&yaw_motor, &pit_motor, &robo_snap);
 Gimbal::Shoot my_shoot(&left_shoot_motor, &right_shoot_motor, &trigger_motor, &robo_snap);
 Gimbal::vision_core my_vision_core(1000, 60, &robo_snap);
-Gimbal::gimbal_coordinate coordinate(&my_shoot,&my_head,&my_vision_core);
+Gimbal::gimbal_coordinate coordinate(&my_shoot, &my_head, &my_vision_core);
 
 //板间通讯
-IBC::ibc_gimbal gimbal_send = {};
+IBC::ibc_gimbal gimbal_send        = {};
 IBC::ibc_chassis_data chassis_data = {};
 // app_msg_can_receiver<IBC::ibc_chassis> chassis_receiver(E_CAN3, CHASSIS_ID);
 
@@ -86,40 +86,46 @@ void app_gimbal_task(void *args) {
     chassis_test.init();
 
     while(true) {
-
         send_cnt++;
         if(send_cnt >= 5) {
             send_cnt = 0;
             auto cmd = coordinate.ctrl_.get_cmd();
-            gimbal_send.gry = IBC::float32_to_uint16(cmd->delta_body_yaw,ZH_GRY_MAX,ZH_GRY_MIN);
-            gimbal_send.height = IBC::float32_to_uint16(cmd->target_height,ZH_HEIGHT_MAX,ZH_HEIGHT_MIN);
-            gimbal_send.vx = IBC::float32_to_uint16(cmd->vx,ZH_V_MAX,ZH_V_MIN);
-            gimbal_send.vy = IBC::float32_to_uint16(cmd->vy,ZH_V_MAX,ZH_V_MIN);
+            //获取底盘位姿与云台的相对位姿，然后计算得到底盘的跟随目标位姿
+            volatile float motor_deg;
+            volatile int32_t delta_encoder = yaw_motor.status.angle - 4168;
+            if(delta_encoder > 8192 / 2) delta_encoder -= 8192;
+            else if(delta_encoder < -8192 / 2) delta_encoder += 8192;
+            motor_deg              = (float)delta_encoder * PI_F32 / (8192/2);
+            volatile float body_target_yaw  = motor_deg + chassis_data.body_phi;
+            gimbal_send.target_yaw = IBC::float32_to_uint16(body_target_yaw, PI_F32, -PI_F32);
+            gimbal_send.height     = IBC::float32_to_uint16(cmd->target_height, ZH_HEIGHT_MAX, ZH_HEIGHT_MIN);
+            gimbal_send.vx         = IBC::float32_to_uint16(cmd->vx, ZH_V_MAX, ZH_V_MIN);
+            gimbal_send.vy         = IBC::float32_to_uint16(cmd->vy, ZH_V_MAX, ZH_V_MIN);
             gimbal_send.switch_cmd = coordinate.ctrl_.get_flag()->switch_cmd_;
+
+            UNUSED(delta_encoder);
+            UNUSED(motor_deg);
+            UNUSED(body_target_yaw);
 
             *sender() = gimbal_send;
             sender.send();
 
-            auto ibc = chassis_test();
-            chassis_data.vector_x = IBC::uint16_to_float32(ibc->vector_x,1,-1);
-            chassis_data.vector_y = IBC::uint16_to_float32(ibc->vector_y,1,-1);
-            chassis_data.vector_z = IBC::uint16_to_float32(ibc->vector_z,1,-1);
-            chassis_data.body_phi = IBC::uint16_to_float32(ibc->body_phi,PI_F32, -PI_F32);
+            auto ibc                  = chassis_test();
+            chassis_data.vector_x     = IBC::uint16_to_float32(ibc->vector_x, 1, -1);
+            chassis_data.vector_y     = IBC::uint16_to_float32(ibc->vector_y, 1, -1);
+            chassis_data.vector_z     = IBC::uint16_to_float32(ibc->vector_z, 1, -1);
+            chassis_data.body_phi     = IBC::uint16_to_float32(ibc->body_phi, PI_F32, -PI_F32);
             chassis_data.chassis_cmd_ = ibc->chassis_cmd_;
         }
 
         my_keyboard.update();
         auto temp = my_keyboard.get_pkg();
 
+
         robo_snap.snap_update();
         coordinate.update_keyboard(temp);
         coordinate.tick();
-        app_msg_vofa_send(E_UART_1,
-            chassis_data.vector_x,
-            chassis_data.vector_y,
-            chassis_data.vector_z,
-            chassis_data.body_phi,
-            chassis_test.timestamp);
+        app_msg_vofa_send(E_UART_1, yaw_motor.status.angle);
         OS::Task::SleepMilliseconds(1);
     }
 }

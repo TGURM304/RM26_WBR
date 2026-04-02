@@ -144,6 +144,24 @@ void Gimbal::keyboard::update() {
         pkg_.switch_rest = false;
     }
 
+    // =========================
+    // 10. 按下V+shift重新enable一次
+    // 不能与shift+G冲突
+    // =========================
+    if(key.v && !key.shift && !last_key.v)
+        pkg_.reset_flag = true;
+    else
+        pkg_.reset_flag = false;
+
+    // =========================
+    // 11. 按下V+shift重新enable一次
+    // 不能与shift+G冲突
+    // =========================
+    if(key.g && !key.shift && !last_key.g)
+        pkg_.gimbal_flag = true;
+    else
+        pkg_.gimbal_flag = false;
+
     //底盘运行模式切换
     //土狗模式，腿部校准模式，LQR模式三选一，按Z/X/C切换，不能同时按，不能与休息冲突
     if(pkg_.switch_rest == false) {
