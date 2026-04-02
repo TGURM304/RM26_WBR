@@ -78,7 +78,7 @@ LegController::wheel_speed_controller dog_controller
     {.Kp = 5, .Ki = 0.08, .Kd = 0, .out_limit = 2.5, .iout_limit = 0.9});
 
 VMC::app_vmc vmc;
-LQR::LQR_controller lqr_controller((float32_t *)K22,(float32_t *)K_Fit_Coefficients);
+LQR::LQR_controller lqr_controller((float32_t *)K22,(float32_t *)K_Fit_Coefficients,(float32_t*)soft_K);
 Coordinate::observer_struct my_observer = {
 .my_adapter_ = &adapter,
 .J1 = &joint1,

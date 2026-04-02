@@ -543,6 +543,7 @@ void app_coordinate::basic_lqr_ctrl(snap *robot_snap, mode_state_struct state,ct
 //一种基本的VMC提交
 void app_coordinate::basic_vmc_update(snap *robot_snap,bool forward){
     auto p = robot_snap->current_snap_get();
+
     auto robot_ctrl = &controller_;
     auto left =  controller_.lqr_controller->get_lqr_output(LQR::E_left);
     auto right = controller_.lqr_controller->get_lqr_output(LQR::E_right);
@@ -596,3 +597,43 @@ void app_coordinate::target_update(snap *robot_snap,ctrl_struct ctrl){
     controller_.leg_ctrl->right_len_update(p->right_leg,mode_state_.height_record);
 }
 
+void app_coordinate::exe_up(snap *robot_snap, mode_state_struct state, ctrl_struct ctrl){
+    if(mode_state_.last_state != E_UP_SOFT && mode_state_.current_state_ == E_UP_SOFT) {
+        LQR_target_data.S = 0;
+        LQR_target_data.phi = 0;
+        LQR_target_data.dot_S = 0;
+        LQR_target_data.dot_phi = 0;
+
+        mode_state_.reduce_cnt = 0;
+        mode_state_.delta_S = 0;
+        mode_state_.height_record = 0.18f;
+
+        robot_snap->snap_clear_S();
+        robot_snap->snap_set_zero();
+    }
+    auto p = robot_snap->current_snap_get();
+    auto zero_p = robot_snap->zero_snap_get();
+    auto dis = 1;
+
+    float32_t delta[10];
+    delta[0] =  LQR_target_data.S       - (p->lqr_data.S                    -   zero_p->lqr_data.S - dis);
+    delta[1] =  LQR_target_data.dot_S    - (p->lqr_data.dot_S-   zero_p->lqr_data.dot_S);
+    delta[2] =  0;
+    // float temp = (p->lqr_data.phi              -zero_p->lqr_data.phi            );
+    // temp > PI? temp -= 2*PI:(temp < -PI? temp += 2*PI:0);
+    // delta[2] =  LQR_target_data.phi     - temp;
+    // delta[2] > PI? delta[2] -= 2*PI:(delta[2] < -PI? delta[2] += 2*PI:0);
+    // delta[2] = (((delta[2]) > (1)) ? (1) : (((delta[2]) < -(1)) ? -(1) : (delta[2])));
+    delta[3] =  0;
+    delta[4] =  0                       - (p->lqr_data.left_theta      );
+    delta[5] =  0                       - (p->lqr_data.left_dot_theta  );
+    delta[6] =  0                       - (p->lqr_data.right_theta     );
+    delta[7] =  0                       - (p->lqr_data.right_dot_theta );
+    delta[8] =  0                       - (p->lqr_data.body_theta      );
+    delta[9] =  0                       - (p->lqr_data.body_dot_theta  );
+    controller_.lqr_controller->soft_clc(delta);
+    target_update(robot_snap,ctrl);
+    basic_vmc_update(robot_snap,true);
+
+    motor_tor_ready();
+}

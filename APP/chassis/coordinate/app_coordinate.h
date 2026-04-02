@@ -84,6 +84,7 @@ namespace Coordinate {
         void exe_put_body           (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
         void exe_put_leg            (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
         void exe_dog                (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
+        void exe_up                 (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
         void exe_chair              (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
         void exe_lqr                (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);
         void exe_upstairs           (snap *robot_snap,mode_state_struct state,ctrl_struct ctrl);

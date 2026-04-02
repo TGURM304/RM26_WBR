@@ -12,6 +12,7 @@
 #define LEG_LEN5  0.340217f
 
 extern const float leg_len_arr[5];
+extern const float soft_K[4][10];
 extern const float K17[4][10];
 extern const float K22[4][10];
 extern const float K27[4][10];

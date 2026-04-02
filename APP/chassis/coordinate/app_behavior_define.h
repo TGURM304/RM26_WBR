@@ -30,6 +30,7 @@ typedef enum:uint8_t {
     E_FALL_PROTECT,
     E_OFF_GROUND,
     E_GET_GROUND_SMOOTH,
+    E_UP_SOFT,
     E_MODE_CNT
 }mode_state;//转换模式
 typedef enum:uint8_t {

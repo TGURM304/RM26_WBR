@@ -30,9 +30,10 @@ class LQR_controller {
      * 输入delta，运算选项，输出torque
      */
 public:
-    LQR_controller(float32_t *static_K, float32_t *dynamic_coe) {
+    LQR_controller(float32_t *static_K, float32_t *dynamic_coe, float32_t *soft_K) {
         memcpy(static_K_,static_K,sizeof(float32_t)*40);
-        memcpy(dynamic_coe_,dynamic_coe,sizeof(float32_t)*240);
+        memcpy(dynamic_coe_,dynamic_coe,sizeof(float32_t)*240),
+        memcpy(soft_K_,soft_K,sizeof(float32_t)*40);
     }
     void static_clc(float32_t *delta_state);
     void dynamic_clc(float32_t *delta_state, Relay::relay_leg left_leg, Relay::relay_leg right_leg);
@@ -43,6 +44,7 @@ public:
      * @param right_leg 右腿观测器
      */
     void fit_clc(float32_t *delta_state, float left_len, float right_len);
+    void soft_clc(float32_t *delta_state);
     lqr_output get_lqr_output(leg_switch leg) {
         if(leg == E_left) {return left_output_;}
         else { return right_output_;}
@@ -53,6 +55,7 @@ public:
     }
 private:
     float32_t static_K_[4][10] = {};
+    float32_t soft_K_[4][10] = {};
     float32_t dynamic_coe_[40][6] = {};
     float32_t dynamic_K_[4][10] = {0.0f};
     float32_t state_delta_[10] = {0.0f};
