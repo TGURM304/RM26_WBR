@@ -15,7 +15,7 @@ void Gimbal::keyboard::update() {
     constexpr float kMoveSpeedNormal = 1.50f;
     constexpr float kMoveSpeedFast   = 3.0f;
 
-    constexpr float kSpinSpeedNormal = 3.0f;
+    constexpr float kSpinSpeedNormal = 4.0f;
     constexpr float kSpinSpeedFast   = 6.0f;
 
     constexpr float kHeightStep = 0.0001f;

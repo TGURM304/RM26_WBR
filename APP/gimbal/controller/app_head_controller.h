@@ -30,7 +30,9 @@ public:
 
     }
     void head_init(const Controller::PID& yaw_pos_param,
-        const Controller::PID& yaw_speed_param
+        const Controller::PID& yaw_speed_param,
+        const Controller::PID& pit_pos_param,
+        const Controller::PID& pit_speed_param
         );
     void head_pid_clc(float target_yaw, float target_pit);
     void head_relax();
@@ -43,7 +45,9 @@ private:
     Motor::DJIMotor *yaw_motor_;
     Motor::DMMotor *pit_motor_;
     Controller::PID yaw_speed_, yaw_pos_;
+    Controller::PID pit_speed_, pit_pos_;
     Filter::BiquadFilter yaw_out_filter_{ 100, 1000, Filter::E_LOW_PASS };
+    Filter::BiquadFilter pit_out_filter_{ 100, 1000, Filter::E_LOW_PASS };
     snap *robo_snap_;
     uint16_t head_flag_{};
     ctrl_pkg head_ctrl_pkg_ = {};

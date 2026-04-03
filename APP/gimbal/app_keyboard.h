@@ -27,6 +27,7 @@ public:
     keyboard() = default;
     keyboard(const robomaster::image::rc::data_t *rc_data) : rc_data_(rc_data) {}
     void update();
+    bsp_rc_keyboard_u* get_raw() {return &keyboard_raw;}
     keyboard_cmd_pkg get_pkg() {return pkg_;}
     float heart_beat_time();//确认是否活着
 private:

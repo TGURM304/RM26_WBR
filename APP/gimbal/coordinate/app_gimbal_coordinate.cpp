@@ -12,6 +12,9 @@ PID yaw_speed(2, 0.1 / 1000.0f, 0, 3, 0.2);
 PID fric_speed(10, 1, 0, 16384, 3000);
 PID trigger_speed(20, 0, 0, 16384, 10000);
 
+PID pit_pos(30, 0, 0, 10, 0);
+PID pit_speed(2.1,5.0/1000,0,5,2);
+
 //flag:几个模式切换的命令标志位
 //cmd:控制命令的数值
 
@@ -99,7 +102,7 @@ void gimbal_coordinate::init() {
     vision_->init();
 
     ctrl_.init();
-    head_->head_init(yaw_pos,yaw_speed);
+    head_->head_init(yaw_pos,yaw_speed,pit_pos,pit_speed);
     shoot_->shoot_init(fric_speed,trigger_speed);
 }
 

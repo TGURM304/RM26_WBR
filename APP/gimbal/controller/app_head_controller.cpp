@@ -11,9 +11,13 @@
 using namespace Gimbal;
 
 void Head::head_init(const Controller::PID& yaw_pos_param,
-    const Controller::PID& yaw_speed_param) {
+    const Controller::PID& yaw_speed_param,
+    const Controller::PID& pit_pos_param,
+    const Controller::PID& pit_speed_param) {
     yaw_speed_ = yaw_speed_param;
     yaw_pos_ = yaw_pos_param;
+    pit_pos_ = pit_pos_param;
+    pit_speed_ = pit_speed_param;
 
     yaw_motor_->init();
     yaw_motor_->enable();
@@ -36,17 +40,28 @@ void Head::head_pid_clc(float target_yaw, float target_pit) {
     float target_yaw_speed = yaw_pos_.update(yaw_delta,0);
     float yaw_target_current = yaw_speed_.update(robo_snap_->get_snap_pkg().ins_yaw_dot,target_yaw_speed);
 
-    //此处默认轮腿身子是平的了，后续可以增加姿态补偿
-    float pit_target = robo_snap_->get_pitch_zero() + target_pit;
-    pit_target > PIT_LIMIT_MAX ? pit_target = PIT_LIMIT_MAX :
-        (pit_target < PIT_LIMIT_MIN ? pit_target = PIT_LIMIT_MIN : 0);
-    head_ctrl_pkg_.pit_pos = pit_target;
-
     float yaw_out_temp = yaw_target_current*16384.0f/3.0f;
     pid_yaw_out_ = yaw_out_filter_.process(yaw_out_temp);
     float forward_temp = 0;
     forward_temp = 0.22f*tanhf(robo_snap_->get_snap_pkg().ins_yaw_dot*1.5f)*16384.0f/3.0f;
     pid_yaw_out_ += forward_temp;
+
+    //此处默认轮腿身子是平的了，后续可以增加姿态补偿
+
+    float target_ver = pit_pos_.update(robo_snap_->get_snap_pkg().ins_pit,target_pit);
+    float pid = pit_speed_.update(robo_snap_->get_snap_pkg().ins_pit_dot,target_ver);
+    float pit_forward = 0.3f*tanhf(robo_snap_->get_snap_pkg().pit_motor_ver*2.3f);
+    pit_forward += 0.7;
+    pid_pit_out_ = pid + pit_forward;
+    // pid_pit_out_ = pit_out_filter_.process(pid_pit_out_);
+    app_msg_vofa_send(E_UART_1,
+        robo_snap_->get_snap_pkg().ins_pit,
+        target_pit,
+        robo_snap_->get_snap_pkg().ins_pit_dot,
+        target_ver,
+        pid,
+        pit_forward);
+
 }
 
 void Head::head_relax() {
@@ -69,5 +84,5 @@ void Head::head_update() {
 
 void Head::head_output(){
     yaw_motor_->update(pid_yaw_out_);
-    pit_motor_->control(head_ctrl_pkg_.pit_pos,0,40,1,0);
+    pit_motor_->control(head_ctrl_pkg_.pit_pos,0,0,0,pid_pit_out_);
 }

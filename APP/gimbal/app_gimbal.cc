@@ -126,11 +126,14 @@ void app_gimbal_task(void *args) {
             pit_motor.reset();
             pit_motor.enable();
         }
+        if(my_keyboard.get_raw()->key.r && !my_keyboard.get_raw()->key.shift) {
+            pit_motor.reset();
+            pit_motor.enable();
+        }
 
         robo_snap.snap_update();
         coordinate.update_keyboard(temp);
         coordinate.tick();
-        app_msg_vofa_send(E_UART_1, pit_motor.status.torque,robo_snap.get_snap_pkg().ins_pit);
         OS::Task::SleepMilliseconds(1);
     }
 }
