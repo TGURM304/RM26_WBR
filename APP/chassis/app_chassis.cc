@@ -149,6 +149,7 @@ void app_chassis_task(void *args) {
 	    }
 
 	    my_coordinate.test_function(&gimbal_data);
+
 	    if((joint1.get_status().err == 0 || joint1.get_status().err == 0xD)
             || (joint2.get_status().err == 0 || joint2.get_status().err == 0xD)
             || (joint3.get_status().err == 0 || joint3.get_status().err == 0xD)

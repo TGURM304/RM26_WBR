@@ -369,6 +369,7 @@ void app_coordinate::exe_dog(snap *robot_snap, mode_state_struct state, ctrl_str
     float delta_yaw = target_yaw - robot_snap->current_snap_get()->robot_raw_data.body_phi;
     if(delta_yaw > PI) delta_yaw -= 2*PI;
     else if(delta_yaw < -PI) delta_yaw += 2*PI;
+    //以上是[-PI,PI]范围内的角度差，下面我希望得到我的一个机体角度跟踪的+-PI都行的方案
     float cor_gry = delta_yaw*10.0f;
     if(abs(cor_gry) > 10) {
         cor_gry = cor_gry > 0? 10:-10;
@@ -377,10 +378,26 @@ void app_coordinate::exe_dog(snap *robot_snap, mode_state_struct state, ctrl_str
     if(abs(delta_yaw) < PI/6) {
         ver = ver*cosf(delta_yaw);
     }
+    //特判一下得了，麻烦死了
+    if(ctrl.ver_x < 0) {
+        target_yaw = ctrl.body_target_yaw + atan2f(ctrl.ver_y,-ctrl.ver_x);
+        delta_yaw = target_yaw - robot_snap->current_snap_get()->robot_raw_data.body_phi;
+        if(delta_yaw > PI) delta_yaw -= 2*PI;
+        else if(delta_yaw < -PI) delta_yaw += 2*PI;
+        cor_gry = delta_yaw*10.0f;
+        if(abs(cor_gry) > 10) {
+            cor_gry = cor_gry > 0? 10:-10;
+        }
+        if(abs(delta_yaw) < PI/6)
+            ver = -ver*cosf(delta_yaw);
+
+    }
+
     if(ctrl.gry != 0) {
         ver = 0;
         cor_gry = ctrl.gry;
     }
+
 
     bool ready_flag = false;
     if(p->left_leg.theta > 0.8 && p->left_leg.theta < 1.2
