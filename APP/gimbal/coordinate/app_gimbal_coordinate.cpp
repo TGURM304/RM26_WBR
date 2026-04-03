@@ -22,6 +22,7 @@ void gimbal_coordinate::tick() {
     auto flag = ctrl_.get_flag();
     auto vision = vision_->get_target();
 
+    vision_->tick();
     //云台运动的控制
     if(flag->auto_aim_gimbal_ == true && flag->gimbal_ctrl_ == true) {
         //此处需要进行二次轨迹规划
@@ -61,7 +62,7 @@ void gimbal_coordinate::tick() {
     if(flag->gimbal_ctrl_ == true
         && flag->shoot_ctrl_ == true && flag->auto_aim_gimbal_ == true) {
         if(vision_->get_target().fire_ctrl_cmd == 2) {
-            shoot_->shoot_update(flag->fric_mode_, flag->trigger_mode_);
+            shoot_->shoot_update(E_FRIC_FAST, flag->trigger_mode_);
         }
         else {
             shoot_->shoot_update(flag->fric_mode_,E_TRIGGER_REST);
@@ -73,7 +74,7 @@ void gimbal_coordinate::tick() {
     }
     else if(flag->gimbal_ctrl_ == true
         && flag->shoot_ctrl_ == false && flag->auto_aim_gimbal_ == false) {
-        shoot_->shoot_update(flag->fric_mode_,E_TRIGGER_REST);
+        shoot_->shoot_update(E_FRIC_FAST,E_TRIGGER_REST);
     }
     else {
         shoot_->shoot_update(E_FRIC_REST,E_TRIGGER_REST);

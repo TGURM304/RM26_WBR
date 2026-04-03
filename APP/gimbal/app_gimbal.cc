@@ -99,10 +99,11 @@ void app_gimbal_task(void *args) {
             volatile float body_target_yaw  = motor_deg + chassis_data.body_phi;
             gimbal_send.target_yaw = IBC::float32_to_uint16(body_target_yaw, PI_F32, -PI_F32);
             gimbal_send.height     = IBC::float32_to_uint16(cmd->target_height, ZH_HEIGHT_MAX, ZH_HEIGHT_MIN);
+            gimbal_send.gry        = IBC::float32_to_uint16(cmd->delta_body_yaw,ZH_GRY_MAX,ZH_GRY_MIN);
             gimbal_send.vx         = IBC::float32_to_uint16(cmd->vx, ZH_V_MAX, ZH_V_MIN);
             gimbal_send.vy         = IBC::float32_to_uint16(cmd->vy, ZH_V_MAX, ZH_V_MIN);
             gimbal_send.switch_cmd = coordinate.ctrl_.get_flag()->switch_cmd_;
-
+            gimbal_send.reset = my_keyboard.get_pkg().reset_flag;
             UNUSED(delta_encoder);
             UNUSED(motor_deg);
             UNUSED(body_target_yaw);

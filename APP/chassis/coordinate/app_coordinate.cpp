@@ -44,6 +44,7 @@ void app_coordinate::test_function(IBC::ibc_gimbal_data* gimbal_data){
     ctrl_struct test = {};
     test.body_height    = gimbal_data->height;
     test.body_target_yaw= gimbal_data->target_yaw;
+    test.gry            = gimbal_data->gry;
     test.ver_x          = gimbal_data->vx;
     test.ver_y          = gimbal_data->vy;
     auto cmd = gimbal_data->switch_cmd;
@@ -375,6 +376,10 @@ void app_coordinate::exe_dog(snap *robot_snap, mode_state_struct state, ctrl_str
     float ver = sqrtf(ctrl.ver_x*ctrl.ver_x + ctrl.ver_y*ctrl.ver_y);
     if(abs(delta_yaw) < PI/6) {
         ver = ver*cosf(delta_yaw);
+    }
+    if(ctrl.gry != 0) {
+        ver = 0;
+        cor_gry = ctrl.gry;
     }
 
     bool ready_flag = false;

@@ -59,7 +59,6 @@ void gimbal_ctrl::keyboard_update(Gimbal::keyboard_cmd_pkg pkg_) {
         flag_.gimbal_ctrl_ = !flag_.gimbal_ctrl_;
     }
 
-
     if(pkg_.switch_rest == true) {
         flag_.switch_cmd_ = Coordinate::mode_switch_cmd::CMD_EMERGENCY;//保护状态，优先级最高
     }
@@ -78,6 +77,7 @@ void gimbal_ctrl::keyboard_update(Gimbal::keyboard_cmd_pkg pkg_) {
      else {
         flag_.switch_cmd_ = Coordinate::mode_switch_cmd::CMD_EXECUTING;
     }
+
 }
 
 void gimbal_ctrl::rc_update(const bsp_rc_data_t *rc) {
