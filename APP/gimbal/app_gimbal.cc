@@ -130,7 +130,7 @@ void app_gimbal_task(void *args) {
         robo_snap.snap_update();
         coordinate.update_keyboard(temp);
         coordinate.tick();
-        app_msg_vofa_send(E_UART_1, yaw_motor.status.angle);
+        app_msg_vofa_send(E_UART_1, pit_motor.status.torque,robo_snap.get_snap_pkg().ins_pit);
         OS::Task::SleepMilliseconds(1);
     }
 }

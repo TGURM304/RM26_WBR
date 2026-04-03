@@ -59,26 +59,39 @@ void gimbal_coordinate::tick() {
      * 3. gimbal不启用自瞄但是用户决定开火就开火
      * 4. 其他情况不动
      */
-    if(flag->gimbal_ctrl_ == true
-        && flag->shoot_ctrl_ == true && flag->auto_aim_gimbal_ == true) {
-        if(vision_->get_target().fire_ctrl_cmd == 2) {
-            shoot_->shoot_update(E_FRIC_FAST, flag->trigger_mode_);
+    auto fric = E_FRIC_FAST;
+    auto trigger = E_TRIGGER_REST;
+    if(flag->auto_aim_gimbal_ == true) {
+        if(flag->shoot_ctrl_ == true) {
+            if(vision_->get_target().fire_ctrl_cmd == 2) {
+                if(flag->trigger_mode_ != E_TRIGGER_REST) {
+                    trigger = flag->trigger_mode_;
+                }
+                else {
+                    trigger = E_TRIGGER_SLOW;
+                }
+                fric = E_FRIC_FAST;
+            }
+            else {
+                trigger = E_TRIGGER_REST;
+                fric = E_FRIC_FAST;
+            }
+        }
+        else if(flag-> shoot_ctrl_ == false) {
+            trigger = E_TRIGGER_REST;
+            fric = E_FRIC_FAST;
+        }
+    }
+    else if(flag->auto_aim_gimbal_ == false) {
+        if(flag->shoot_ctrl_ == true) {
+            trigger = flag->trigger_mode_;
         }
         else {
-            shoot_->shoot_update(flag->fric_mode_,E_TRIGGER_REST);
+            trigger = E_TRIGGER_REST;
         }
+        fric = flag->fric_mode_;
     }
-    else if(flag->gimbal_ctrl_ == true
-        && flag->shoot_ctrl_ == true && flag->auto_aim_gimbal_ == false) {
-        shoot_->shoot_update(flag->fric_mode_, flag->trigger_mode_);
-    }
-    else if(flag->gimbal_ctrl_ == true
-        && flag->shoot_ctrl_ == false && flag->auto_aim_gimbal_ == false) {
-        shoot_->shoot_update(E_FRIC_FAST,E_TRIGGER_REST);
-    }
-    else {
-        shoot_->shoot_update(E_FRIC_REST,E_TRIGGER_REST);
-    }
+    shoot_->shoot_update(fric, trigger);
     shoot_->shoot_tick();
 }
 
