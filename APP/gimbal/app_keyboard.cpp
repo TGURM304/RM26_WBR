@@ -12,11 +12,11 @@ void Gimbal::keyboard::update() {
     }
 
     // ===== 可调参数 =====
-    constexpr float kMoveSpeedNormal = 1.50f;
-    constexpr float kMoveSpeedFast   = 3.0f;
+    constexpr float kMoveSpeedNormal = 1.00f;
+    constexpr float kMoveSpeedFast   = 2.0f;
 
     constexpr float kSpinSpeedNormal = 4.0f;
-    constexpr float kSpinSpeedFast   = 6.0f;
+    constexpr float kSpinSpeedFast   = 8.0f;
 
     constexpr float kHeightStep = 0.0001f;
 
